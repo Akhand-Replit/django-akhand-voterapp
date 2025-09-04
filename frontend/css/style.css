@@ -1,0 +1,6 @@
+/* We can add custom CSS here later if needed */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-smoothing: grayscale;
+}
+

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blossom Educare - Voter Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Login to Blossom Educare</h2>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="username" class="block text-gray-700 mb-2">Username</label>
+                    <input type="text" id="username" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-gray-700 mb-2">Password</label>
+                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200">Log In</button>
+            </form>
+            <p id="login-error" class="mt-4 text-red-500 text-center"></p>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="hidden">
+        <div class="flex h-screen bg-gray-200">
+            <!-- Sidebar -->
+            <aside class="w-64 bg-gray-800 text-white flex flex-col">
+                <div class="p-4 border-b border-gray-700">
+                    <h1 class="text-2xl font-bold">Blossom Educare</h1>
+                    <p class="text-sm text-gray-400">Voter Analytics Platform</p>
+                </div>
+                <nav class="flex-1 p-4">
+                    <ul>
+                        <!-- Added unique IDs for navigation -->
+                        <li><a href="#" id="nav-dashboard" class="nav-link active">Dashboard</a></li>
+                        <li><a href="#" id="nav-search" class="nav-link">Search & View</a></li>
+                        <li><a href="#" id="nav-add" class="nav-link">Add Record</a></li>
+                        <li><a href="#" id="nav-upload" class="nav-link">Upload Data</a></li>
+                    </ul>
+                </nav>
+                <div class="p-4 border-t border-gray-700">
+                    <button id="logout-button" class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Logout</button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6 overflow-y-auto">
+                <!-- Dashboard Page -->
+                <section id="dashboard-page">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Dashboard Overview</h2>
+                    <p class="text-gray-600 mb-6">A summary of your voter data.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-gray-500 text-sm font-medium">Total Records</h3>
+                            <p id="total-records" class="text-3xl font-bold text-gray-800">0</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-gray-500 text-sm font-medium">Total Batches</h3>
+                            <p id="total-batches" class="text-3xl font-bold text-gray-800">0</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-gray-500 text-sm font-medium">Friends</h3>
+                            <p id="total-friends" class="text-3xl font-bold text-green-600">0</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-gray-500 text-sm font-medium">Enemies</h3>
+                            <p id="total-enemies" class="text-3xl font-bold text-red-600">0</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- NEW: Search Page -->
+                <section id="search-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Search Records</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <form id="search-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="text" id="search-name" placeholder="Name" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-voter-no" placeholder="Voter No" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-father-name" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-address" placeholder="Address" class="px-4 py-2 border rounded-lg">
+                            <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Search</button>
+                        </form>
+                    </div>
+                    <div id="search-results" class="space-y-4">
+                        <!-- Search results will be dynamically inserted here -->
+                    </div>
+                </section>
+                
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
+
