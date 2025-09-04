@@ -1,6 +1,43 @@
-/* We can add custom CSS here later if needed */
-body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-smoothing: grayscale;
+/* General Styles */
+.nav-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+    margin-bottom: 0.5rem;
+}
+
+.nav-link:hover {
+    background-color: #4a5568; /* gray-700 */
+}
+
+.nav-link.active {
+    background-color: #2563eb; /* blue-600 */
+    font-weight: bold;
+}
+
+/* NEW: Search Result Card */
+.result-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    border-left: 5px solid #3b82f6; /* blue-500 */
+}
+
+.result-card h3 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #1f2937; /* gray-800 */
+    margin-bottom: 0.5rem;
+}
+
+.result-card p {
+    color: #4b5563; /* gray-600 */
+    margin-bottom: 0.25rem;
+}
+
+.result-card strong {
+    color: #374151; /* gray-700 */
 }
 

@@ -39,7 +39,6 @@
                 </div>
                 <nav class="flex-1 p-4">
                     <ul>
-                        <!-- Added unique IDs for navigation -->
                         <li><a href="#" id="nav-dashboard" class="nav-link active">Dashboard</a></li>
                         <li><a href="#" id="nav-search" class="nav-link">Search & View</a></li>
                         <li><a href="#" id="nav-add" class="nav-link">Add Record</a></li>
@@ -77,7 +76,7 @@
                     </div>
                 </section>
 
-                <!-- NEW: Search Page -->
+                <!-- Search Page -->
                 <section id="search-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Search Records</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -89,11 +88,34 @@
                             <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Search</button>
                         </form>
                     </div>
-                    <div id="search-results" class="space-y-4">
-                        <!-- Search results will be dynamically inserted here -->
-                    </div>
+                    <div id="search-results" class="space-y-4"></div>
                 </section>
                 
+                <!-- NEW: Add Record Page -->
+                <section id="add-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Add a New Record</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <form id="add-record-form">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- All fields for a new record -->
+                                <input type="text" name="naam" placeholder="Name (Required)" class="px-4 py-2 border rounded-lg" required>
+                                <input type="text" name="kromik_no" placeholder="Kromik No" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="voter_no" placeholder="Voter No" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="pitar_naam" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="matar_naam" placeholder="Mother's Name" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="pesha" placeholder="Profession" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="jonmo_tarikh" placeholder="Date of Birth (e.g., 10/05/1990)" class="px-4 py-2 border rounded-lg">
+                                <select name="batch" id="add-record-batch" class="px-4 py-2 border rounded-lg" required>
+                                    <option value="">Select a Batch (Required)</option>
+                                    <!-- Batch options will be populated by JS -->
+                                </select>
+                                <textarea name="thikana" placeholder="Address" class="md:col-span-2 px-4 py-2 border rounded-lg"></textarea>
+                            </div>
+                            <button type="submit" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">Save Record</button>
+                        </form>
+                        <p id="add-record-success" class="mt-4 text-green-600"></p>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
