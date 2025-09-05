@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blossom Educare - Voter Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- NEW: Chart.js library for creating charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -47,8 +46,11 @@
                         <li><a href="#" id="nav-upload" class="nav-link">Upload Data</a></li>
                         <li><a href="#" id="nav-alldata" class="nav-link">All Data (Bulk Edit)</a></li>
                         <li><a href="#" id="nav-relationships" class="nav-link">Relationships</a></li>
-                        <!-- NEW: Analysis Page Link -->
                         <li><a href="#" id="nav-analysis" class="nav-link">Analysis</a></li>
+                        <!-- NEW: Age Management Link -->
+                        <li><a href="#" id="nav-age" class="nav-link">Age Management</a></li>
+                        <li><a href="#" id="nav-familytree" class="nav-link">Family Tree</a></li>
+                        <li><a href="#" id="nav-callhistory" class="nav-link">Call History</a></li>
                     </ul>
                 </nav>
                 <div class="p-4 border-t border-gray-700">
@@ -184,7 +186,7 @@
                     </div>
                 </section>
 
-                <!-- NEW: Analysis Page -->
+                <!-- Analysis Page -->
                 <section id="analysis-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Data Analysis</h2>
                     <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -200,6 +202,109 @@
                     </div>
                 </section>
                 
+                <!-- NEW: Age Management Page -->
+                <section id="age-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Age Management & Analysis</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Recalculate All Ages</h3>
+                        <p class="text-gray-600 mb-4">This will update the age for all records in the database based on their date of birth. This process can take a moment for large datasets.</p>
+                        <button id="recalculate-ages-button" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Start Recalculation</button>
+                        <div id="age-recalculation-status" class="mt-4"></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Current Age Distribution</h3>
+                        <canvas id="age-management-chart-container"></canvas>
+                   </div>
+                </section>
+                <!-- NEW: Family Tree Page -->
+                <section id="familytree-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Family Tree Management</h2>
+                    
+                    <!-- Step 1: Search for the main person -->
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Step 1: Select a Person to Manage</h3>
+                        <div class="mb-4">
+                            <label for="family-main-search" class="block text-gray-700 mb-2">Search by Name or Voter No</label>
+                            <input type="text" id="family-main-search" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., John Doe or 123456">
+                        </div>
+                        <div id="family-main-search-results" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Step 2: Display selected person and their relatives -->
+                    <div id="family-management-section" class="hidden">
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Selected Person</h3>
+                            <div id="family-selected-person-details"></div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                             <h3 class="text-xl font-bold text-gray-800 mb-2">Current Family Members</h3>
+                             <div id="family-current-relatives" class="space-y-2"></div>
+                        </div>
+                        
+                        <!-- Step 3: Add a new relative -->
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Step 2: Add a Relative</h3>
+                            <div class="mb-4">
+                                <label for="family-relative-search" class="block text-gray-700 mb-2">Search for Relative to Add</label>
+                                <input type="text" id="family-relative-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search by name or voter no...">
+                            </div>
+                            <div id="family-relative-search-results" class="space-y-2 mb-4"></div>
+                            
+                            <div id="family-add-form" class="hidden">
+                                <div class="mb-4">
+                                    <label for="relationship-type" class="block text-gray-700 mb-2">Relationship Type</label>
+                                    <input type="text" id="relationship-type" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., Father, Spouse, Daughter">
+                                </div>
+                                <button id="add-relationship-button" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Add Relationship</button>
+                                <p id="family-add-status" class="mt-4"></p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- NEW: Call History Page -->
+                <section id="callhistory-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Call History Management</h2>
+
+                    <!-- Search for a person -->
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Search for a Person</h3>
+                        <div class="mb-4">
+                            <label for="callhistory-search" class="block text-gray-700 mb-2">Search by Name or Voter No</label>
+                            <input type="text" id="callhistory-search" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., Jane Doe or 654321">
+                        </div>
+                        <div id="callhistory-search-results" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Display logs and add new log form -->
+                    <div id="callhistory-management-section" class="hidden">
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Call Logs For:</h3>
+                            <div id="callhistory-selected-person"></div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                             <h3 class="text-xl font-bold text-gray-800 mb-2">Existing Call History</h3>
+                             <div id="callhistory-logs-container" class="space-y-4"></div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Add New Call Log</h3>
+                            <form id="add-call-log-form">
+                                <div class="mb-4">
+                                    <label for="call-date" class="block text-gray-700 mb-2">Call Date</label>
+                                    <input type="date" id="call-date" class="w-full px-4 py-2 border rounded-lg" required>
+                                </div>
+                                <div class="mb-4">
+                                     <label for="call-summary" class="block text-gray-700 mb-2">Summary</label>
+                                     <textarea id="call-summary" rows="4" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter a brief summary of the call..." required></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Save Log</button>
+                                <p id="call-log-status" class="mt-4"></p>
+                            </form>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>

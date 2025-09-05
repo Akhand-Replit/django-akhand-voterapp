@@ -38,3 +38,30 @@ class Record(models.Model):
     def __str__(self):
         return self.naam
 
+class FamilyRelationship(models.Model):
+    person = models.ForeignKey(Record, on_delete=models.CASCADE, related_name='relationships')
+    relative = models.ForeignKey(Record, on_delete=models.CASCADE, related_name='relative_of')
+    relationship_type = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ('person', 'relative')
+
+    def __str__(self):
+        return f"{self.relative.naam} is the {self.relationship_type} of {self.person.naam}"
+
+# --- NEW MODEL FOR CALL HISTORY ---
+class CallHistory(models.Model):
+    """
+    Stores a log of calls made to a specific voter record.
+    """
+    record = models.ForeignKey(Record, on_delete=models.CASCADE, related_name='call_history')
+    call_date = models.DateField()
+    summary = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-call_date', '-created_at'] # Show the most recent calls first
+
+    def __str__(self):
+        return f"Call to {self.record.naam} on {self.call_date}"
+

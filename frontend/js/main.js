@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
         alldata: document.getElementById('nav-alldata'),
         relationships: document.getElementById('nav-relationships'),
         analysis: document.getElementById('nav-analysis'),
+        age: document.getElementById('nav-age'),
+        familytree: document.getElementById('nav-familytree'),
     };
 
     const pages = {
@@ -25,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
         alldata: document.getElementById('alldata-page'),
         relationships: document.getElementById('relationships-page'),
         analysis: document.getElementById('analysis-page'),
+        age: document.getElementById('age-page'),
+        familytree: document.getElementById('familytree-page'),
     };
 
     // --- Search Page Elements ---
@@ -59,6 +63,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Analysis Page Elements ---
     const analysisContent = document.getElementById('analysis-content');
 
+    // --- Age Management Page Elements ---
+    const recalculateAgesButton = document.getElementById('recalculate-ages-button');
+    const ageRecalculationStatus = document.getElementById('age-recalculation-status');
+
+    // --- Family Tree Page Elements ---
+    const familyMainSearchInput = document.getElementById('family-main-search');
+    const familyMainSearchResults = document.getElementById('family-main-search-results');
+    const familyManagementSection = document.getElementById('family-management-section');
+    const familySelectedPersonDetails = document.getElementById('family-selected-person-details');
+    const familyCurrentRelatives = document.getElementById('family-current-relatives');
+    const familyRelativeSearchInput = document.getElementById('family-relative-search');
+    const familyRelativeSearchResults = document.getElementById('family-relative-search-results');
+    const familyAddForm = document.getElementById('family-add-form');
+    const relationshipTypeInput = document.getElementById('relationship-type');
+    const addRelationshipButton = document.getElementById('add-relationship-button');
+    const familyAddStatus = document.getElementById('family-add-status');
+
+    let selectedPersonId = null;
+    let selectedRelativeId = null;
+
+
 
     // --- Event Listeners ---
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
@@ -75,6 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (relTabs) relTabs.forEach(tab => {
         tab.addEventListener('click', () => handleRelTabClick(tab));
     });
+    if (recalculateAgesButton) recalculateAgesButton.addEventListener('click', handleRecalculateAges);
+    if (familyMainSearchInput) familyMainSearchInput.addEventListener('input', debounce(handleFamilyTreeSearch, 300));
+    if (familyRelativeSearchInput) familyRelativeSearchInput.addEventListener('input', debounce(handleFamilyTreeSearch, 300));
+    if (addRelationshipButton) addRelationshipButton.addEventListener('click', handleAddRelationship);
 
 
     // --- Event Handlers ---
@@ -283,6 +312,133 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function handleRecalculateAges() {
+        if (!ageRecalculationStatus) return;
+        ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>';
+        try {
+            const result = await recalculateAllAges();
+            ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`;
+            initializeAgeManagementPage();
+        } catch (error) {
+            ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+        }
+    }
+
+    async function handleFamilyTreeSearch(event) {
+        const input = event.target;
+        const query = input.value.trim();
+        const isMainSearch = input.id === 'family-main-search';
+        const resultsContainer = isMainSearch ? familyMainSearchResults : familyRelativeSearchResults;
+
+        if (!query) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+
+        try {
+            const data = await searchRecords({ naam__icontains: query });
+            resultsContainer.innerHTML = '';
+            if (data.results.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>';
+            } else {
+                data.results.forEach(record => {
+                    const button = document.createElement('button');
+                    button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100';
+                    button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`;
+                    button.onclick = () => {
+                        if (isMainSearch) {
+                            selectMainPerson(record);
+                        } else {
+                            selectRelative(record);
+                        }
+                    };
+                    resultsContainer.appendChild(button);
+                });
+            }
+        } catch (error) {
+            resultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        }
+    }
+
+    function selectMainPerson(person) {
+        selectedPersonId = person.id;
+        familySelectedPersonDetails.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`;
+        familyManagementSection.classList.remove('hidden');
+        familyMainSearchResults.innerHTML = '';
+        familyMainSearchInput.value = person.naam;
+        loadFamilyTree(person.id);
+    }
+
+    function selectRelative(relative) {
+        selectedRelativeId = relative.id;
+        familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`;
+        familyRelativeSearchInput.value = relative.naam;
+        familyAddForm.classList.remove('hidden');
+    }
+
+    async function loadFamilyTree(personId) {
+        familyCurrentRelatives.innerHTML = '<p class="text-gray-500">Loading relatives...</p>';
+        try {
+            const relationships = await getFamilyTree(personId);
+            familyCurrentRelatives.innerHTML = '';
+            if (relationships.length === 0) {
+                familyCurrentRelatives.innerHTML = '<p class="text-gray-500">No relatives added yet.</p>';
+            } else {
+                relationships.forEach(rel => {
+                    const relDiv = document.createElement('div');
+                    relDiv.className = 'flex justify-between items-center p-2 border-b';
+                    relDiv.innerHTML = `
+                        <div>
+                            <span class="font-bold">${rel.relationship_type}:</span>
+                            <span>${rel.relative.naam} (Voter No: ${rel.relative.voter_no || 'N/A'})</span>
+                        </div>
+                        <button data-id="${rel.id}" class="remove-relative-btn text-red-500 hover:text-red-700">Remove</button>
+                    `;
+                    familyCurrentRelatives.appendChild(relDiv);
+                });
+                document.querySelectorAll('.remove-relative-btn').forEach(btn => {
+                    btn.addEventListener('click', handleRemoveRelationship);
+                });
+            }
+        } catch (error) {
+            familyCurrentRelatives.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        }
+    }
+
+    async function handleAddRelationship() {
+        const relationshipType = relationshipTypeInput.value.trim();
+        if (!selectedPersonId || !selectedRelativeId || !relationshipType) {
+            familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.';
+            return;
+        }
+
+        familyAddStatus.textContent = 'Adding...';
+        try {
+            await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType);
+            familyAddStatus.textContent = 'Relationship added successfully!';
+            familyRelativeSearchInput.value = '';
+            relationshipTypeInput.value = '';
+            selectedRelativeId = null;
+            familyRelativeSearchResults.innerHTML = '';
+            familyAddForm.classList.add('hidden');
+            loadFamilyTree(selectedPersonId);
+        } catch (error) {
+            familyAddStatus.textContent = `Error: ${error.message}`;
+        }
+    }
+
+    async function handleRemoveRelationship(event) {
+        const relationshipId = event.target.dataset.id;
+        if (!confirm('Are you sure you want to remove this relationship?')) return;
+        
+        try {
+            await removeFamilyMember(relationshipId);
+            loadFamilyTree(selectedPersonId);
+        } catch (error) {
+            alert(`Failed to remove relationship: ${error.message}`);
+        }
+    }
+
 
     // --- UI Update Functions ---
     function navigateTo(pageName) {
@@ -293,18 +449,12 @@ document.addEventListener('DOMContentLoaded', () => {
         pages[pageName].classList.remove('hidden');
         navLinks[pageName].classList.add('active');
 
-        if (pageName === 'add') {
-            populateBatchDropdown();
-        }
-        if (pageName === 'alldata') {
-            initializeAllDataPage();
-        }
-        if (pageName === 'relationships') {
-            initializeRelationshipsPage();
-        }
-        if (pageName === 'analysis') {
-            initializeAnalysisPage();
-        }
+        if (pageName === 'add') populateBatchDropdown();
+        if (pageName === 'alldata') initializeAllDataPage();
+        if (pageName === 'relationships') initializeRelationshipsPage();
+        if (pageName === 'analysis') initializeAnalysisPage();
+        if (pageName === 'age') initializeAgeManagementPage();
+        if (pageName === 'familytree') initializeFamilyTreePage();
     }
 
     function displayPaginationControls(container, prevUrl, nextUrl, callback) {
@@ -537,72 +687,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- FIX: Add checks for element existence ---
     async function initializeAnalysisPage() {
         const contentEl = document.getElementById('analysis-content');
         if (!contentEl) return;
         contentEl.innerHTML = '<p class="text-gray-500">Loading analysis data...</p>';
         try {
             const stats = await getAnalysisStats();
-            contentEl.innerHTML = ''; // Clear loading message
+            contentEl.innerHTML = '';
             renderProfessionChart(stats.professions);
             renderGenderChart(stats.genders);
-            renderAgeChart(stats.age_groups);
+            renderAgeChart(stats.age_groups, 'age-chart-container');
         } catch (error) {
             contentEl.innerHTML = `<p class="text-red-500">Failed to load analysis data: ${error.message}</p>`;
         }
     }
 
+    async function initializeAgeManagementPage() {
+        if (ageRecalculationStatus) ageRecalculationStatus.innerHTML = '';
+        try {
+            const stats = await getAnalysisStats();
+            renderAgeChart(stats.age_groups, 'age-management-chart-container');
+        } catch (error) {
+            const container = document.getElementById('age-management-chart-container');
+            if (container) container.parentElement.innerHTML = `<p class="text-red-500">Failed to load age chart: ${error.message}</p>`;
+        }
+    }
+
+
     function renderProfessionChart(professionData) {
         const container = document.getElementById('profession-chart-container');
         if (!container || !professionData || professionData.length === 0) {
-            if(container) container.innerHTML = '<p class="text-gray-500">No profession data available.</p>';
+            if (container) container.innerHTML = '<p class="text-gray-500">No profession data available.</p>';
             return;
+        }
+        const canvas = container.getContext('2d');
+        if (Chart.getChart(canvas)) {
+            Chart.getChart(canvas).destroy();
         }
 
         const labels = professionData.map(p => p.pesha);
         const data = professionData.map(p => p.count);
 
-        new Chart(container.getContext('2d'), {
+        new Chart(canvas, {
             type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Professions',
                     data: data,
-                    backgroundColor: [
-                        '#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981',
-                        '#3B82F6', '#6366F1', '#D946EF', '#FBBF24', '#34D399'
-                    ],
+                    backgroundColor: ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#D946EF', '#FBBF24', '#34D399'],
                     hoverOffset: 4
                 }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Voter Distribution by Profession'
-                    }
-                }
-            }
+            options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Voter Distribution by Profession' } } }
         });
     }
 
     function renderGenderChart(genderData) {
         const container = document.getElementById('gender-chart-container');
         if (!container || !genderData || genderData.length === 0) {
-             if(container) container.innerHTML = '<p class="text-gray-500">No gender data available.</p>';
+            if (container) container.innerHTML = '<p class="text-gray-500">No gender data available.</p>';
             return;
+        }
+        const canvas = container.getContext('2d');
+        if (Chart.getChart(canvas)) {
+            Chart.getChart(canvas).destroy();
         }
 
         const labels = genderData.map(g => g.gender);
         const data = genderData.map(g => g.count);
 
-        new Chart(container.getContext('2d'), {
+        new Chart(canvas, {
             type: 'pie',
             data: {
                 labels: labels,
@@ -613,38 +768,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     hoverOffset: 4
                 }]
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Voter Distribution by Gender'
-                    }
-                }
-            }
+            options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Voter Distribution by Gender' } } }
         });
     }
 
-    function renderAgeChart(ageData) {
-        const container = document.getElementById('age-chart-container');
+    function renderAgeChart(ageData, containerId) {
+        const container = document.getElementById(containerId);
         if (!container || !ageData) {
-            if(container) container.innerHTML = '<p class="text-gray-500">No age data available.</p>';
+            if (container) container.innerHTML = '<p class="text-gray-500">No age data available.</p>';
             return;
+        }
+        const canvas = container.getContext('2d');
+        if (Chart.getChart(canvas)) {
+            Chart.getChart(canvas).destroy();
         }
 
         const labels = ['18-25', '26-35', '36-45', '46-60', '60+'];
-        const data = [
-            ageData.group_18_25,
-            ageData.group_26_35,
-            ageData.group_36_45,
-            ageData.group_46_60,
-            ageData.group_60_plus
-        ];
+        const data = [ageData.group_18_25, ageData.group_26_35, ageData.group_36_45, ageData.group_46_60, ageData.group_60_plus];
 
-        new Chart(container.getContext('2d'), {
+        new Chart(canvas, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -656,26 +798,34 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: {
-                        display: false,
-                    },
-                    title: {
-                        display: true,
-                        text: 'Voter Distribution by Age Group'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
+                plugins: { legend: { display: false }, title: { display: true, text: 'Voter Distribution by Age Group' } },
+                scales: { y: { beginAtZero: true } }
             }
         });
     }
 
+    function initializeFamilyTreePage() {
+        if (familyMainSearchInput) familyMainSearchInput.value = '';
+        if (familyMainSearchResults) familyMainSearchResults.innerHTML = '';
+        if (familyManagementSection) familyManagementSection.classList.add('hidden');
+        if (familyRelativeSearchInput) familyRelativeSearchInput.value = '';
+        if (familyRelativeSearchResults) familyRelativeSearchResults.innerHTML = '';
+        if (familyAddForm) familyAddForm.classList.add('hidden');
+        selectedPersonId = null;
+        selectedRelativeId = null;
+    }
 
-    // --- App Initialization ---
+
+    // --- App Initialization & Utilities ---
+    function debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+    
     function showLogin() {
         if (loginScreen) loginScreen.classList.remove('hidden');
         if (appContainer) appContainer.classList.add('hidden');
@@ -695,6 +845,153 @@ document.addEventListener('DOMContentLoaded', () => {
             showLogin();
         }
     }
+
+    
+    // --- NEW: Call History Elements ---
+    const callHistorySearchInput = document.getElementById('callhistory-search');
+    const callHistorySearchResults = document.getElementById('callhistory-search-results');
+    const callHistoryManagementSection = document.getElementById('callhistory-management-section');
+    const callHistorySelectedPerson = document.getElementById('callhistory-selected-person');
+    const callHistoryLogsContainer = document.getElementById('callhistory-logs-container');
+    const addCallLogForm = document.getElementById('add-call-log-form');
+    const callLogStatus = document.getElementById('call-log-status');
+    let selectedPersonForCallHistory = null;
+
+
+    // --- Event Listeners ---
+    // ... (all existing event listeners up to addRelationshipButton)
+    if (addRelationshipButton) addRelationshipButton.addEventListener('click', handleAddRelationship);
+    
+    // --- NEW: Call History Event Listeners ---
+    if (callHistorySearchInput) callHistorySearchInput.addEventListener('input', debounce(handleCallHistorySearch, 300));
+    if (addCallLogForm) addCallLogForm.addEventListener('submit', handleAddCallLog);
+
+
+    // --- Event Handlers ---
+    // ... (all existing event handlers up to handleRemoveRelationship)
+
+    async function handleRemoveRelationship(event) {
+        const relationshipId = event.target.dataset.id;
+        if (!confirm('Are you sure you want to remove this relationship?')) return;
+        
+        try {
+            await removeFamilyMember(relationshipId);
+            loadFamilyTree(selectedPersonId);
+        } catch (error) {
+            alert(`Failed to remove relationship: ${error.message}`);
+        }
+    }
+
+    // --- NEW: Call History Event Handlers ---
+    async function handleCallHistorySearch(event) {
+        const query = event.target.value.trim();
+        if (!query) {
+            callHistorySearchResults.innerHTML = '';
+            return;
+        }
+        try {
+            const data = await searchRecords({ naam__icontains: query });
+            callHistorySearchResults.innerHTML = '';
+            if (data.results.length === 0) {
+                callHistorySearchResults.innerHTML = '<p class="text-gray-500">No results found.</p>';
+            } else {
+                data.results.forEach(record => {
+                    const button = document.createElement('button');
+                    button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100';
+                    button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`;
+                    button.onclick = () => selectPersonForCallHistory(record);
+                    callHistorySearchResults.appendChild(button);
+                });
+            }
+        } catch (error) {
+            callHistorySearchResults.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        }
+    }
+
+    function selectPersonForCallHistory(person) {
+        selectedPersonForCallHistory = person;
+        callHistorySelectedPerson.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`;
+        callHistoryManagementSection.classList.remove('hidden');
+        callHistorySearchResults.innerHTML = '';
+        callHistorySearchInput.value = person.naam;
+        loadCallHistory(person.id);
+    }
+
+    async function loadCallHistory(recordId) {
+        callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">Loading history...</p>';
+        try {
+            const history = await getCallHistory(recordId);
+            callHistoryLogsContainer.innerHTML = '';
+            if (history.length === 0) {
+                callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">No call history found for this person.</p>';
+            } else {
+                history.forEach(log => {
+                    const logDiv = document.createElement('div');
+                    logDiv.className = 'p-3 border rounded-lg bg-gray-50';
+                    logDiv.innerHTML = `
+                        <p class="font-bold text-gray-700">${log.call_date}</p>
+                        <p class="text-gray-600 mt-1">${log.summary}</p>
+                    `;
+                    callHistoryLogsContainer.appendChild(logDiv);
+                });
+            }
+        } catch (error) {
+            callHistoryLogsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        }
+    }
+
+    async function handleAddCallLog(event) {
+        event.preventDefault();
+        const callDate = document.getElementById('call-date').value;
+        const summary = document.getElementById('call-summary').value.trim();
+        if (!callDate || !summary) {
+            callLogStatus.textContent = 'Please fill out all fields.';
+            return;
+        }
+
+        callLogStatus.textContent = 'Saving...';
+        try {
+            await addCallLog(selectedPersonForCallHistory.id, callDate, summary);
+            callLogStatus.textContent = 'Log saved successfully!';
+            addCallLogForm.reset();
+            loadCallHistory(selectedPersonForCallHistory.id);
+        } catch (error) {
+            callLogStatus.textContent = `Error: ${error.message}`;
+        }
+    }
+
+
+    // --- UI Update Functions ---
+    function navigateTo(pageName) {
+        // ... (existing navigateTo function)
+        if (pageName === 'age') initializeAgeManagementPage();
+        if (pageName === 'familytree') initializeFamilyTreePage();
+        if (pageName === 'callhistory') initializeCallHistoryPage(); // Add this line
+    }
+
+    // ... (rest of UI update functions down to initializeFamilyTreePage)
+
+    function initializeFamilyTreePage() {
+        if (familyMainSearchInput) familyMainSearchInput.value = '';
+        if (familyMainSearchResults) familyMainSearchResults.innerHTML = '';
+        if (familyManagementSection) familyManagementSection.classList.add('hidden');
+        if (familyRelativeSearchInput) familyRelativeSearchInput.value = '';
+        if (familyRelativeSearchResults) familyRelativeSearchResults.innerHTML = '';
+        if (familyAddForm) familyAddForm.classList.add('hidden');
+        selectedPersonId = null;
+        selectedRelativeId = null;
+    }
+
+    function initializeCallHistoryPage() {
+        if (callHistorySearchInput) callHistorySearchInput.value = '';
+        if (callHistorySearchResults) callHistorySearchResults.innerHTML = '';
+        if (callHistoryManagementSection) callHistoryManagementSection.classList.add('hidden');
+        if(addCallLogForm) addCallLogForm.reset();
+        if(callLogStatus) callLogStatus.textContent = '';
+        selectedPersonForCallHistory = null;
+    }
+
+
 
     init();
 });

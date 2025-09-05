@@ -1,17 +1,25 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, RelationshipStatsView, AnalysisStatsView
+from .views import (
+    BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, 
+    RelationshipStatsView, AnalysisStatsView, RecalculateAgesView,
+    FamilyRelationshipViewSet, CallHistoryViewSet
+)
 
 router = DefaultRouter()
 router.register(r'batches', BatchViewSet, basename='batch')
 router.register(r'records', RecordViewSet, basename='record')
+router.register(r'family-relationships', FamilyRelationshipViewSet, basename='familyrelationship')
+# --- NEW ROUTE ---
+router.register(r'call-history', CallHistoryViewSet, basename='callhistory')
+
 
 urlpatterns = [
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     path('upload-data/', UploadDataView.as_view(), name='upload-data'),
     path('relationship-stats/', RelationshipStatsView.as_view(), name='relationship-stats'),
-    # --- NEW URL ---
     path('analysis-stats/', AnalysisStatsView.as_view(), name='analysis-stats'),
+    path('recalculate-ages/', RecalculateAgesView.as_view(), name='recalculate-ages'),
     path('', include(router.urls)),
 ]
 
