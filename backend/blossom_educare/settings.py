@@ -134,9 +134,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True # Good for initial setup
 # More specific setting to allow requests from local files
-CORS_ALLOWED_ORIGINS = [
-    "null",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "null",
+# ]
 
 
 # Django REST Framework configuration
@@ -148,4 +148,7 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [ # Add this section
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
+        # --- NEW: Add pagination settings ---
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50 # You can adjust this number
 }

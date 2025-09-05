@@ -24,18 +24,25 @@ async function getDashboardStats() {
     return response.json();
 }
 
-async function searchRecords(searchParams) {
+async function searchRecords(searchParamsOrUrl) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
 
-    const query = new URLSearchParams(searchParams).toString();
-    const url = `${API_BASE_URL}/api/records/?${query}`;
+    let url;
+    // If the argument is a full URL (for next/prev pages), use it directly.
+    if (typeof searchParamsOrUrl === 'string') {
+        url = searchParamsOrUrl;
+    } else {
+        // Otherwise, build the query from parameters.
+        const query = new URLSearchParams(searchParamsOrUrl).toString();
+        url = `${API_BASE_URL}/api/records/?${query}`;
+    }
 
     const response = await fetch(url, {
         headers: { 'Authorization': `Token ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch search results.');
-    return response.json();
+    return response.json(); // This will now return {count, next, previous, results}
 }
 
 // NEW: Function to get all batches (for the dropdown)
@@ -50,7 +57,6 @@ async function getBatches() {
     return response.json();
 }
 
-// NEW: Function to add a new record
 async function addRecord(recordData) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -65,10 +71,82 @@ async function addRecord(recordData) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        // Combine field errors into a single string for display
         const errorMessages = Object.entries(errorData).map(([field, messages]) => `${field}: ${messages.join(', ')}`);
         throw new Error(errorMessages.join(' | ') || 'Failed to add record.');
     }
+    return response.json();
+}
+
+async function uploadData(batchName, file) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const formData = new FormData();
+    formData.append('batch_name', batchName);
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/upload-data/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload file.');
+    }
+    return response.json();
+}
+
+async function getBatchFiles(batchId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/batches/${batchId}/files/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch batch files.');
+    return response.json();
+}
+
+async function updateRecord(recordId, recordData) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/records/${recordId}/`, {
+        method: 'PATCH', // Use PATCH to update only changed fields
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(recordData),
+    });
+    if (!response.ok) throw new Error('Failed to update record.');
+    return response.json();
+}
+
+async function getRelationshipStats() {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/relationship-stats/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch relationship stats.');
+    return response.json();
+}
+
+// --- NEW FUNCTION ---
+async function getAnalysisStats() {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/analysis-stats/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch analysis stats.');
     return response.json();
 }
 
