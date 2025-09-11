@@ -106,12 +106,16 @@
                 <section id="search-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Search Records</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <form id="search-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <form id="search-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <input type="text" id="search-name" placeholder="Name" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-voter-no" placeholder="Voter No" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-father-name" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
-                            <input type="text" id="search-address" placeholder="Address" class="px-4 py-2 border rounded-lg">
-                            <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Search</button>
+                            <input type="text" id="search-mother-name" placeholder="Mother's Name" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-kromik-no" placeholder="Serial Number" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-profession" placeholder="Profession" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-phone" placeholder="Phone Number" class="px-4 py-2 border rounded-lg">
+                            <input type="text" id="search-address" placeholder="Address" class="lg:col-span-2 px-4 py-2 border rounded-lg">
+                            <button type="submit" class="lg:col-span-3 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Search</button>
                         </form>
                     </div>
                     <div id="search-results" class="space-y-4"></div>
@@ -165,7 +169,7 @@
 
                 <!-- All Data (Bulk Edit) Page -->
                 <section id="alldata-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">All Records (Bulk Edit)</h2>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">All Records</h2>
                     <div class="bg-white p-4 rounded-lg shadow-md mb-6">
                         <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
                             <div>
@@ -176,10 +180,7 @@
                                 <label for="alldata-file-select" class="block text-sm font-medium text-gray-700">Select File</label>
                                 <select id="alldata-file-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
                             </div>
-                            <div class="flex-grow"></div>
-                            <div>
-                                <button id="save-all-data-button" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Save Changes</button>
-                            </div>
+                            <!-- REMOVED the global save button -->
                         </div>
                     </div>
                     <div id="alldata-table-container" class="bg-white p-2 rounded-lg shadow-md overflow-x-auto"></div>
@@ -322,10 +323,128 @@
                 </section>
             </main>
         </div>
+
+        <!-- NEW: Edit Record Modal -->
+        <div id="edit-record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 class="text-xl leading-6 font-medium text-gray-900">Edit Record</h3>
+                        <button id="modal-close-button-x" class="text-gray-400 hover:text-gray-600">
+                            <span class="text-2xl">&times;</span>
+                        </button>
+                    </div>
+                    <div class="mt-4 px-7 py-3 max-h-[70vh] overflow-y-auto">
+                        <form id="edit-record-form" class="text-left">
+                            <input type="hidden" id="edit-record-id">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                
+                                <!-- Column 1: Basic Info -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-naam" class="block text-sm font-medium text-gray-700">Name</label>
+                                        <input type="text" id="edit-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-voter-no" class="block text-sm font-medium text-gray-700">Voter No</label>
+                                        <input type="text" id="edit-voter-no" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-kromik-no" class="block text-sm font-medium text-gray-700">Kromik No</label>
+                                        <input type="text" id="edit-kromik-no" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-jonmo-tarikh" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                                        <input type="text" id="edit-jonmo-tarikh" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                                        <input type="text" id="edit-gender" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Column 2: Family & Work -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-pitar-naam" class="block text-sm font-medium text-gray-700">Father's Name</label>
+                                        <input type="text" id="edit-pitar-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-matar-naam" class="block text-sm font-medium text-gray-700">Mother's Name</label>
+                                        <input type="text" id="edit-matar-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-pesha" class="block text-sm font-medium text-gray-700">Profession</label>
+                                        <input type="text" id="edit-pesha" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-occupation-details" class="block text-sm font-medium text-gray-700">Occupation Details</label>
+                                        <textarea id="edit-occupation-details" rows="3" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Column 3: Contact & Social -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-phone-number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                                        <input type="text" id="edit-phone-number" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-whatsapp-number" class="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                                        <input type="text" id="edit-whatsapp-number" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-facebook-link" class="block text-sm font-medium text-gray-700">Facebook Link</label>
+                                        <input type="text" id="edit-facebook-link" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-photo-link" class="block text-sm font-medium text-gray-700">Photo Link</label>
+                                        <input type="text" id="edit-photo-link" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Full Width Fields -->
+                                <div class="md:col-span-3">
+                                    <label for="edit-thikana" class="block text-sm font-medium text-gray-700">Address</label>
+                                    <textarea id="edit-thikana" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                 <div class="md:col-span-3">
+                                    <label for="edit-description" class="block text-sm font-medium text-gray-700">Description</label>
+                                    <textarea id="edit-description" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                <div class="md:col-span-3">
+                                    <label for="edit-political-status" class="block text-sm font-medium text-gray-700">Political Status</label>
+                                    <textarea id="edit-political-status" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                <div class="md:col-span-3">
+                                     <label for="edit-relationship-status" class="block text-sm font-medium text-gray-700">Relationship</label>
+                                     <select id="edit-relationship-status" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                         <option value="Regular">Regular</option>
+                                         <option value="Friend">Friend</option>
+                                         <option value="Enemy">Enemy</option>
+                                         <option value="Connected">Connected</option>
+                                     </select>
+                                 </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="items-center px-4 py-3 border-t mt-4 text-right">
+                        <button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            Cancel
+                        </button>
+                        <button id="modal-save-button" class="ml-4 px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
+
+
 

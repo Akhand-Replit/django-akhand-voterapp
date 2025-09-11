@@ -47,6 +47,11 @@ class RecordViewSet(viewsets.ModelViewSet):
         'batch': ['exact'],
         'file_name': ['exact'],
         'relationship_status': ['exact'],
+        # --- NEW SEARCH FIELDS ---
+        'kromik_no': ['exact'],
+        'matar_naam': ['icontains'],
+        'pesha': ['icontains'],
+        'phone_number': ['icontains'],
     }
 
 
@@ -111,7 +116,7 @@ class AnalysisStatsView(APIView):
         if other_count > 0:
             top_professions.append({'pesha': 'Others', 'count': other_count})
         genders = Record.objects.filter(gender__isnull=False).exclude(gender__exact='').values('gender').annotate(count=models.Count('gender'))
-        age_groups = Record.objects.filter(age__isnull=False).aggregate(
+        age_groups = Record.objects.aggregate(
             group_18_25=models.Count(Case(When(age__range=(18, 25), then=Value(1)))),
             group_26_35=models.Count(Case(When(age__range=(26, 35), then=Value(1)))),
             group_36_45=models.Count(Case(When(age__range=(36, 45), then=Value(1)))),

@@ -55,11 +55,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const allDataBatchSelect = document.getElementById('alldata-batch-select');
     const allDataFileSelect = document.getElementById('alldata-file-select');
     const allDataTableContainer = document.getElementById('alldata-table-container');
-    const saveAllDataButton = document.getElementById('save-all-data-button');
     const allDataStatus = document.getElementById('alldata-status');
     const allDataPaginationContainer = document.getElementById('alldata-pagination');
     let originalRecords = [];
     let currentAllDataParams = {};
+
+    // --- NEW: Modal Elements ---
+    const editRecordModal = document.getElementById('edit-record-modal');
+    const editRecordForm = document.getElementById('edit-record-form');
+    const modalCloseButton = document.getElementById('modal-close-button');
+    const modalCloseButtonX = document.getElementById('modal-close-button-x'); // New X button
+    const modalSaveButton = document.getElementById('modal-save-button');
+    const editRecordIdInput = document.getElementById('edit-record-id');
+
 
     // --- Relationships Page Elements ---
     const relTabs = document.querySelectorAll('.rel-tab-button');
@@ -118,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (uploadDataForm) uploadDataForm.addEventListener('submit', handleUploadData);
     if (allDataBatchSelect) allDataBatchSelect.addEventListener('change', handleAllDataBatchSelect);
     if (allDataFileSelect) allDataFileSelect.addEventListener('change', () => handleAllDataFileSelect());
-    if (saveAllDataButton) saveAllDataButton.addEventListener('click', handleSaveChanges);
     if (relTabs) relTabs.forEach(tab => {
         tab.addEventListener('click', () => handleRelTabClick(tab));
     });
@@ -129,6 +136,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (callHistorySearchInput) callHistorySearchInput.addEventListener('input', debounce(handleCallHistorySearch, 300));
     if (addCallLogForm) addCallLogForm.addEventListener('submit', handleAddCallLog);
 
+    // --- NEW: Modal Event Listeners ---
+    if (modalCloseButton) modalCloseButton.addEventListener('click', () => editRecordModal.classList.add('hidden'));
+    if (modalCloseButtonX) modalCloseButtonX.addEventListener('click', () => editRecordModal.classList.add('hidden'));
+    if (modalSaveButton) modalSaveButton.addEventListener('click', handleModalSave);
+
+    // --- NEW: Event delegation for All Data table ---
+    if (allDataTableContainer) {
+        allDataTableContainer.addEventListener('click', (e) => {
+            // Handle Edit button clicks
+            if (e.target.classList.contains('edit-btn')) {
+                const recordId = e.target.dataset.recordId;
+                openEditModal(recordId);
+            }
+
+            // Handle row highlighting
+            const row = e.target.closest('tr');
+            if (row) {
+                // Remove highlight from any previously selected row
+                const currentlyHighlighted = allDataTableContainer.querySelector('.highlight-row');
+                if (currentlyHighlighted) {
+                    currentlyHighlighted.classList.remove('highlight-row');
+                }
+                // Add highlight to the clicked row
+                row.classList.add('highlight-row');
+            }
+        });
+    }
 
     // --- Event Handlers ---
     async function handleLogin(e) { e.preventDefault(); loginError.textContent = ''; const username = document.getElementById('username').value; const password = document.getElementById('password').value; try { const data = await loginUser(username, password); localStorage.setItem('authToken', data.token); showApp(); } catch (error) { loginError.textContent = error.message; } }
@@ -146,12 +180,111 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleSearch(e, url = null) { if (e) e.preventDefault(); if (!searchResultsContainer) return; searchResultsContainer.innerHTML = '<p class="text-gray-500">Searching...</p>'; let searchParams; if (url) { searchParams = url; } else { const params = { naam__icontains: document.getElementById('search-name').value, voter_no: document.getElementById('search-voter-no').value, pitar_naam__icontains: document.getElementById('search-father-name').value, thikana__icontains: document.getElementById('search-address').value, }; searchParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v.trim() !== '')); } try { const data = await searchRecords(searchParams); displaySearchResults(data.results); displayPaginationControls(searchPaginationContainer, data.previous, data.next, (nextUrl) => handleSearch(null, nextUrl)); } catch (error) { searchResultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
+
+        async function handleSearch(e, url = null) { 
+        if (e) e.preventDefault(); 
+        if (!searchResultsContainer) return; 
+        searchResultsContainer.innerHTML = '<p class="text-gray-500">Searching...</p>'; 
+        let searchParams; 
+        if (url) { 
+            searchParams = url; 
+        } else { 
+            const params = { 
+                naam__icontains: document.getElementById('search-name').value, 
+                voter_no: document.getElementById('search-voter-no').value, 
+                pitar_naam__icontains: document.getElementById('search-father-name').value, 
+                thikana__icontains: document.getElementById('search-address').value, 
+                // --- NEW SEARCH PARAMETERS ---
+                matar_naam__icontains: document.getElementById('search-mother-name').value,
+                kromik_no: document.getElementById('search-kromik-no').value,
+                pesha__icontains: document.getElementById('search-profession').value,
+                phone_number__icontains: document.getElementById('search-phone').value,
+            }; 
+            searchParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v.trim() !== '')); 
+        } 
+        try { 
+            const data = await searchRecords(searchParams); 
+            displaySearchResults(data.results); 
+            displayPaginationControls(searchPaginationContainer, data.previous, data.next, (nextUrl) => handleSearch(null, nextUrl)); 
+        } catch (error) { 
+            searchResultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; 
+        } 
+    }
+    async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
+    async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
+// ... existing code ... -->
     async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
     async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleAllDataBatchSelect() { const batchId = allDataBatchSelect.value; if (!allDataFileSelect || !allDataTableContainer) return; allDataFileSelect.innerHTML = '<option value="">Loading files...</option>'; allDataTableContainer.innerHTML = ''; originalRecords = []; if (!batchId) { allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; return; } try { const files = await getBatchFiles(batchId); allDataFileSelect.innerHTML = '<option value="all">All Files</option>'; files.forEach(file => { const option = document.createElement('option'); option.value = file; option.textContent = file; allDataFileSelect.appendChild(option); }); handleAllDataFileSelect(); } catch (error) { allDataFileSelect.innerHTML = '<option value="">Error loading files</option>'; console.error(error); } }
-    async function handleAllDataFileSelect(url = null) { if (!allDataBatchSelect || !allDataFileSelect || !allDataTableContainer) return; const batchId = allDataBatchSelect.value; const fileName = allDataFileSelect.value; allDataTableContainer.innerHTML = '<p class="p-4 text-gray-500">Loading records...</p>'; if (!batchId) return; let params; if (url) { params = url; } else { currentAllDataParams = { batch: batchId }; if (fileName && fileName !== 'all') { currentAllDataParams.file_name = fileName; } params = currentAllDataParams; } try { const data = await searchRecords(params); originalRecords = data.results; renderEditableTable(data.results); displayPaginationControls(allDataPaginationContainer, data.previous, data.next, handleAllDataFileSelect); } catch (error) { allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; } }
-    async function handleSaveChanges() { if (!allDataStatus || !allDataTableContainer) return; allDataStatus.innerHTML = '<p class="text-blue-600">Saving changes...</p>'; const tableRows = allDataTableContainer.querySelectorAll('tbody tr'); const updatePromises = []; tableRows.forEach((row, index) => { const recordId = row.dataset.recordId; const originalRecord = originalRecords.find(r => r.id == recordId); if (!originalRecord) return; const currentRecord = { naam: row.querySelector('input[data-field="naam"]').value, voter_no: row.querySelector('input[data-field="voter_no"]').value, pitar_naam: row.querySelector('input[data-field="pitar_naam"]').value, thikana: row.querySelector('textarea[data-field="thikana"]').value, relationship_status: row.querySelector('select[data-field="relationship_status"]').value, }; const hasChanged = Object.keys(currentRecord).some(key => originalRecord[key] !== currentRecord[key]); if (hasChanged) { updatePromises.push(updateRecord(recordId, currentRecord)); } }); if (updatePromises.length === 0) { allDataStatus.innerHTML = '<p class="text-gray-600">No changes detected.</p>'; return; } try { await Promise.all(updatePromises); allDataStatus.innerHTML = `<p class="text-green-600">Successfully saved ${updatePromises.length} records!</p>`; handleAllDataFileSelect(currentAllDataParams); } catch (error) { allDataStatus.innerHTML = `<p class="text-red-600">Error saving changes: ${error.message}</p>`; } }
+    async function handleAllDataFileSelect(url = null) { if (!allDataBatchSelect || !allDataFileSelect || !allDataTableContainer) return; const batchId = allDataBatchSelect.value; const fileName = allDataFileSelect.value; allDataTableContainer.innerHTML = '<p class="p-4 text-gray-500">Loading records...</p>'; if (!batchId) return; let params; if (url) { params = url; } else { currentAllDataParams = { batch: batchId }; if (fileName && fileName !== 'all') { currentAllDataParams.file_name = fileName; } params = currentAllDataParams; } try { const data = await searchRecords(params); originalRecords = data.results; renderReadOnlyTable(data.results);
+ displayPaginationControls(allDataPaginationContainer, data.previous, data.next, handleAllDataFileSelect); } catch (error) { allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; } }
+    
+    // --- NEW: Modal and related functions ---
+    function openEditModal(recordId) {
+        const record = originalRecords.find(r => r.id == recordId);
+        if (!record) {
+            alert('Could not find record details.');
+            return;
+        }
+
+        editRecordIdInput.value = record.id;
+        document.getElementById('edit-naam').value = record.naam || '';
+        document.getElementById('edit-voter-no').value = record.voter_no || '';
+        document.getElementById('edit-kromik-no').value = record.kromik_no || '';
+        document.getElementById('edit-jonmo-tarikh').value = record.jonmo_tarikh || '';
+        document.getElementById('edit-gender').value = record.gender || '';
+        document.getElementById('edit-pitar-naam').value = record.pitar_naam || '';
+        document.getElementById('edit-matar-naam').value = record.matar_naam || '';
+        document.getElementById('edit-pesha').value = record.pesha || '';
+        document.getElementById('edit-occupation-details').value = record.occupation_details || '';
+        document.getElementById('edit-phone-number').value = record.phone_number || '';
+        document.getElementById('edit-whatsapp-number').value = record.whatsapp_number || '';
+        document.getElementById('edit-facebook-link').value = record.facebook_link || '';
+        document.getElementById('edit-photo-link').value = record.photo_link || '';
+        document.getElementById('edit-thikana').value = record.thikana || '';
+        document.getElementById('edit-description').value = record.description || '';
+        document.getElementById('edit-political-status').value = record.political_status || '';
+        document.getElementById('edit-relationship-status').value = record.relationship_status || 'Regular';
+        
+        editRecordModal.classList.remove('hidden');
+    }
+
+    async function handleModalSave() {
+        const recordId = editRecordIdInput.value;
+        const updatedData = {
+            naam: document.getElementById('edit-naam').value,
+            voter_no: document.getElementById('edit-voter-no').value,
+            kromik_no: document.getElementById('edit-kromik-no').value,
+            jonmo_tarikh: document.getElementById('edit-jonmo-tarikh').value,
+            gender: document.getElementById('edit-gender').value,
+            pitar_naam: document.getElementById('edit-pitar-naam').value,
+            matar_naam: document.getElementById('edit-matar-naam').value,
+            pesha: document.getElementById('edit-pesha').value,
+            occupation_details: document.getElementById('edit-occupation-details').value,
+            phone_number: document.getElementById('edit-phone-number').value,
+            whatsapp_number: document.getElementById('edit-whatsapp-number').value,
+            facebook_link: document.getElementById('edit-facebook-link').value,
+            photo_link: document.getElementById('edit-photo-link').value,
+            thikana: document.getElementById('edit-thikana').value,
+            description: document.getElementById('edit-description').value,
+            political_status: document.getElementById('edit-political-status').value,
+            relationship_status: document.getElementById('edit-relationship-status').value,
+        };
+
+        allDataStatus.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
+        
+        try {
+            await updateRecord(recordId, updatedData);
+            allDataStatus.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
+            editRecordModal.classList.add('hidden');
+            // Refresh the table to show the updated data
+            handleAllDataFileSelect(currentAllDataParams); 
+        } catch (error) {
+            allDataStatus.innerHTML = `<p class="text-red-600">Error saving changes: ${error.message}</p>`;
+        }
+    }
+
+
     function handleRelTabClick(clickedTab) { if (!relTabs) return; relTabs.forEach(tab => tab.classList.remove('active')); clickedTab.classList.add('active'); const status = clickedTab.dataset.status; if (status === 'Stats') { displayRelationshipStats(); } else { displayRelationshipList(status); } }
     async function handleRecalculateAges() { if (!ageRecalculationStatus) return; ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; try { const result = await recalculateAllAges(); ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; initializeAgeManagementPage(); } catch (error) { ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleFamilyTreeSearch(event) { const input = event.target; const query = input.value.trim(); const isMainSearch = input.id === 'family-main-search'; const resultsContainer = isMainSearch ? familyMainSearchResults : familyRelativeSearchResults; if (!query) { resultsContainer.innerHTML = ''; return; } try { const data = await searchRecords({ naam__icontains: query }); resultsContainer.innerHTML = ''; if (data.results.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); } } catch (error) { resultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
@@ -168,10 +301,56 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Update Functions ---
     function navigateTo(pageName) { if (!pages[pageName]) return; Object.values(pages).forEach(page => page && page.classList.add('hidden')); Object.values(navLinks).forEach(link => link && link.classList.remove('active')); pages[pageName].classList.remove('hidden'); navLinks[pageName].classList.add('active'); if (pageName === 'add') populateBatchDropdown(); if (pageName === 'alldata') initializeAllDataPage(); if (pageName === 'relationships') initializeRelationshipsPage(); if (pageName === 'analysis') initializeAnalysisPage(); if (pageName === 'age') initializeAgeManagementPage(); if (pageName === 'familytree') initializeFamilyTreePage(); if (pageName === 'callhistory') initializeCallHistoryPage(); }
     function displayPaginationControls(container, prevUrl, nextUrl, callback) { if (!container) return; container.innerHTML = ''; const prevButton = document.createElement('button'); prevButton.textContent = 'Previous'; prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; prevButton.disabled = !prevUrl; prevButton.addEventListener('click', () => callback(prevUrl)); const nextButton = document.createElement('button'); nextButton.textContent = 'Next'; nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; nextButton.disabled = !nextUrl; nextButton.addEventListener('click', () => callback(nextUrl)); container.appendChild(prevButton); container.appendChild(nextButton); }
-    function renderEditableTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap"><input type="text" data-field="naam" class="w-full p-1 border rounded" value="${record.naam || ''}"></td> <td class="px-6 py-4 whitespace-nowrap"><input type="text" data-field="voter_no" class="w-full p-1 border rounded" value="${record.voter_no || ''}"></td> <td class="px-6 py-4 whitespace-nowrap"><input type="text" data-field="pitar_naam" class="w-full p-1 border rounded" value="${record.pitar_naam || ''}"></td> <td class="px-6 py-4 whitespace-nowrap"><textarea data-field="thikana" class="w-full p-1 border rounded">${record.thikana || ''}</textarea></td> <td class="px-6 py-4 whitespace-nowrap"> <select data-field="relationship_status" class="w-full p-1 border rounded"> <option value="Regular" ${record.relationship_status === 'Regular' ? 'selected' : ''}>Regular</option> <option value="Friend" ${record.relationship_status === 'Friend' ? 'selected' : ''}>Friend</option> <option value="Enemy" ${record.relationship_status === 'Enemy' ? 'selected' : ''}>Enemy</option> <option value="Connected" ${record.relationship_status === 'Connected' ? 'selected' : ''}>Connected</option> </select> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
+    
+    function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50'; // Add cursor pointer for better UX
+ row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap">${record.naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.voter_no || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.pitar_naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.thikana || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.relationship_status || ''}</td> <td class="px-6 py-4 whitespace-nowrap"> <button data-record-id="${record.id}" class="edit-btn text-indigo-600 hover:text-indigo-900">Edit</button> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
+
     function displayRelationshipList(status, url = null) { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; relPaginationContainer.innerHTML = ''; const params = { relationship_status: status }; searchRecords(url || params).then(data => { if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } const listContainer = document.createElement('div'); listContainer.className = 'space-y-4'; data.results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; listContainer.appendChild(card); }); relContentContainer.innerHTML = ''; relContentContainer.appendChild(listContainer); displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }); }
     async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
-    function displaySearchResults(results) { if (!searchResultsContainer) return; searchResultsContainer.innerHTML = ''; if (!results || results.length === 0) { searchResultsContainer.innerHTML = '<p class="text-gray-600">No results found.</p>'; return; } results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; searchResultsContainer.appendChild(card); }); }
+    
+    // --- MODIFIED to render new detailed card ---
+    function displaySearchResults(results) {
+        if (!searchResultsContainer) return;
+        searchResultsContainer.innerHTML = '';
+        if (!results || results.length === 0) {
+            searchResultsContainer.innerHTML = '<p class="text-gray-600">No results found.</p>';
+            return;
+        }
+
+        results.forEach(record => {
+            const card = document.createElement('div');
+            card.className = 'search-card-detailed';
+
+            // Function to safely display data or show 'N/A'
+            const safeText = (text) => text || '<span class="text-gray-400">N/A</span>';
+
+            card.innerHTML = `
+                <div class="search-card-header">
+                    <h3>${safeText(record.naam)}</h3>
+                    <span class="kromik-no">Serial No: ${safeText(record.kromik_no)}</span>
+                </div>
+                <div class="search-card-body">
+                    <img src="${record.photo_link}" alt="Voter Photo" class="search-card-photo" onerror="this.onerror=null;this.src='https://placehold.co/100x100/EEE/31343C?text=No+Image';">
+                    <div class="search-card-details-grid">
+                        <div class="detail-item"><span class="label">Voter No:</span> ${safeText(record.voter_no)}</div>
+                        <div class="detail-item"><span class="label">Father's Name:</span> ${safeText(record.pitar_naam)}</div>
+                        <div class="detail-item"><span class="label">Mother's Name:</span> ${safeText(record.matar_naam)}</div>
+                        <div class="detail-item"><span class="label">Date of Birth:</span> ${safeText(record.jonmo_tarikh)}</div>
+                        <div class="detail-item"><span class="label">Profession:</span> ${safeText(record.pesha)}</div>
+                        <div class="detail-item"><span class="label">Address:</span> ${safeText(record.thikana)}</div>
+                        <div class="detail-item"><span class="label">Phone:</span> ${safeText(record.phone_number)}</div>
+                        <div class="detail-item"><span class="label">Gender:</span> ${safeText(record.gender)}</div>
+                        <div class="detail-item"><span class="label">Age:</span> ${safeText(record.age)}</div>
+                        <div class="detail-item"><span class="label">Relationship:</span> ${safeText(record.relationship_status)}</div>
+                        <div class="detail-item"><span class="label">Batch:</span> ${safeText(record.batch_name)}</div>
+                         <div class="detail-item"><span class="label">File:</span> ${safeText(record.file_name)}</div>
+                    </div>
+                </div>
+            `;
+            searchResultsContainer.appendChild(card);
+        });
+    }
+    
     async function updateDashboardStats() { try { const stats = await getDashboardStats(); document.getElementById('total-records').textContent = stats.total_records; document.getElementById('total-batches').textContent = stats.total_batches; document.getElementById('total-friends').textContent = stats.friend_count; document.getElementById('total-enemies').textContent = stats.enemy_count; } catch (error) { console.error('Failed to update dashboard stats:', error); } }
     async function populateBatchDropdown() { if (!addRecordBatchSelect) return; try { const batchesData = await getBatches(); const batches = batchesData.results; addRecordBatchSelect.innerHTML = '<option value="">Select a Batch (Required)</option>'; batches.forEach(batch => { const option = document.createElement('option'); option.value = batch.id; option.textContent = batch.name; addRecordBatchSelect.appendChild(option); }); } catch (error) { console.error('Failed to populate batches:', error); } }
     function initializeRelationshipsPage() { if (!relTabs.length) return; handleRelTabClick(document.querySelector('.rel-tab-button[data-status="Friend"]')); }
