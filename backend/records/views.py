@@ -8,11 +8,20 @@ from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
 
-from .models import Batch, Record, FamilyRelationship , CallHistory
+from .models import Batch, Record, FamilyRelationship , CallHistory, Event
 from .serializers import (
     BatchSerializer, RecordSerializer, FamilyRelationshipSerializer, 
-    CreateFamilyRelationshipSerializer , CallHistorySerializer
+    CreateFamilyRelationshipSerializer, CallHistorySerializer, EventSerializer
 )
+
+class EventViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing events. Provides list, create, retrieve,
+    update, and destroy actions.
+    """
+    queryset = Event.objects.all().order_by('name')
+    serializer_class = EventSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 class BatchViewSet(viewsets.ModelViewSet):
     """
@@ -28,7 +37,6 @@ class BatchViewSet(viewsets.ModelViewSet):
         batch = self.get_object()
         files = Record.objects.filter(batch=batch).values_list('file_name', flat=True).distinct()
         return Response(sorted(list(files)))
-
 
 class RecordViewSet(viewsets.ModelViewSet):
     """
@@ -47,13 +55,12 @@ class RecordViewSet(viewsets.ModelViewSet):
         'batch': ['exact'],
         'file_name': ['exact'],
         'relationship_status': ['exact'],
-        # --- NEW SEARCH FIELDS ---
         'kromik_no': ['exact'],
         'matar_naam': ['icontains'],
         'pesha': ['icontains'],
         'phone_number': ['icontains'],
+        'events': ['exact'], # Allows filtering by event ID, e.g., /api/records/?events=1
     }
-
 
 class DashboardStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -139,43 +146,28 @@ class RecalculateAgesView(APIView):
                 updated_count += 1
         return Response({"message": f"Successfully recalculated and updated the age for {updated_count} records."})
 
-# --- NEW VIEWSET FOR FAMILY RELATIONSHIPS ---
 class FamilyRelationshipViewSet(viewsets.ModelViewSet):
-    """
-    This viewset handles creating, viewing, and deleting family relationships.
-    """
     queryset = FamilyRelationship.objects.all()
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
-        # Use a different serializer for the 'create' action
         if self.action == 'create':
             return CreateFamilyRelationshipSerializer
         return FamilyRelationshipSerializer
 
     def get_queryset(self):
-        # Filter relationships based on the 'person_id' query parameter
         person_id = self.request.query_params.get('person_id')
         if person_id:
             return FamilyRelationship.objects.filter(person_id=person_id).select_related('relative')
-        # Return none if no specific person is requested to avoid listing all relationships
         return FamilyRelationship.objects.none()
 
-
-# --- NEW VIEWSET FOR CALL HISTORY ---
 class CallHistoryViewSet(viewsets.ModelViewSet):
-    """
-    This viewset handles creating and viewing call logs for a voter.
-    """
     queryset = CallHistory.objects.all()
     serializer_class = CallHistorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Filter call history based on the 'record_id' query parameter
         record_id = self.request.query_params.get('record_id')
         if record_id:
             return CallHistory.objects.filter(record_id=record_id)
-        # Return none if no specific record is requested
         return CallHistory.objects.none()
-

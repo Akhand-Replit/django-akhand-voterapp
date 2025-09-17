@@ -1,5 +1,37 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const headers = {
+        ...options.headers,
+        'Authorization': `Token ${token}`,
+    };
+
+    const response = await fetch(url, { ...options, headers });
+
+    if (!response.ok) {
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+            const errorData = await response.json();
+            // Extract meaningful errors from DRF responses
+            errorMessage = Object.entries(errorData).map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`).join(' | ') || 'An unknown error occurred.';
+        } catch (e) {
+            // Not a JSON response, stick with the status code
+        }
+        throw new Error(errorMessage);
+    }
+    
+    // Handle 204 No Content response for DELETE requests
+    if (response.status === 204) {
+        return null;
+    }
+
+    return response.json();
+}
+
+// --- Auth ---
 async function loginUser(username, password) {
     const response = await fetch(`${API_BASE_URL}/api/get-token/`, {
         method: 'POST',
@@ -13,21 +45,15 @@ async function loginUser(username, password) {
     return response.json();
 }
 
-async function getDashboardStats() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
+// --- Dashboard & Stats ---
+async function getDashboardStats() { return fetchWithAuth(`${API_BASE_URL}/api/dashboard-stats/`); }
+async function getRelationshipStats() { return fetchWithAuth(`${API_BASE_URL}/api/relationship-stats/`); }
+async function getAnalysisStats() { return fetchWithAuth(`${API_BASE_URL}/api/analysis-stats/`); }
 
-    const response = await fetch(`${API_BASE_URL}/api/dashboard-stats/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch dashboard stats.');
-    return response.json();
-}
-
+// --- Records & Batches ---
+async function getBatches() { return fetchWithAuth(`${API_BASE_URL}/api/batches/`); }
+async function getBatchFiles(batchId) { return fetchWithAuth(`${API_BASE_URL}/api/batches/${batchId}/files/`); }
 async function searchRecords(searchParamsOrUrl) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
     let url;
     if (typeof searchParamsOrUrl === 'string') {
         url = searchParamsOrUrl;
@@ -35,242 +61,82 @@ async function searchRecords(searchParamsOrUrl) {
         const query = new URLSearchParams(searchParamsOrUrl).toString();
         url = `${API_BASE_URL}/api/records/?${query}`;
     }
-
-    const response = await fetch(url, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch search results.');
-    return response.json();
+    return fetchWithAuth(url);
 }
-
-async function getBatches() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/batches/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch batches.');
-    return response.json();
-}
-
 async function addRecord(recordData) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/records/`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/records/`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(recordData),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessages = Object.entries(errorData).map(([field, messages]) => `${field}: ${messages.join(', ')}`);
-        throw new Error(errorMessages.join(' | ') || 'Failed to add record.');
-    }
-    return response.json();
 }
-
+async function updateRecord(recordId, recordData) {
+    return fetchWithAuth(`${API_BASE_URL}/api/records/${recordId}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recordData),
+    });
+}
 async function uploadData(batchName, file) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
     const formData = new FormData();
     formData.append('batch_name', batchName);
     formData.append('file', file);
-
-    const response = await fetch(`${API_BASE_URL}/api/upload-data/`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/upload-data/`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-        },
         body: formData,
     });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload file.');
-    }
-    return response.json();
 }
 
-async function getBatchFiles(batchId) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/batches/${batchId}/files/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch batch files.');
-    return response.json();
-}
-
-async function updateRecord(recordId, recordData) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/records/${recordId}/`, {
-        method: 'PATCH',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(recordData),
-    });
-    if (!response.ok) throw new Error('Failed to update record.');
-    return response.json();
-}
-
-async function getRelationshipStats() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/relationship-stats/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch relationship stats.');
-    return response.json();
-}
-
-async function getAnalysisStats() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/analysis-stats/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch analysis stats.');
-    return response.json();
-}
-
-// --- NEW FUNCTION for Age Management ---
+// --- Age Management ---
 async function recalculateAllAges() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/recalculate-ages/`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/recalculate-ages/`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-        },
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to recalculate ages.');
-    }
-    return response.json();
 }
 
-
-async function getAnalysisStats() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/analysis-stats/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch analysis stats.');
-    return response.json();
-}
-
-async function recalculateAllAges() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/recalculate-ages/`, {
-        method: 'POST',
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to recalculate ages.');
-    }
-    return response.json();
-}
-
-// --- NEW FUNCTIONS FOR FAMILY TREE ---
-
-async function getFamilyTree(personId) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/family-relationships/?person_id=${personId}`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch family tree.');
-    return response.json();
-}
-
+// --- Family Tree ---
+async function getFamilyTree(personId) { return fetchWithAuth(`${API_BASE_URL}/api/family-relationships/?person_id=${personId}`); }
 async function addFamilyMember(personId, relativeId, relationshipType) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/family-relationships/`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/family-relationships/`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            person: personId,
-            relative: relativeId,
-            relationship_type: relationshipType
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person: personId, relative: relativeId, relationship_type: relationshipType }),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to add family member.');
-    }
-    return response.json();
 }
-
 async function removeFamilyMember(relationshipId) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/family-relationships/${relationshipId}/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to remove family member.');
-    // No content is returned on successful deletion
+    return fetchWithAuth(`${API_BASE_URL}/api/family-relationships/${relationshipId}/`, { method: 'DELETE' });
 }
 
-
-// --- NEW FUNCTIONS FOR CALL HISTORY ---
-
-async function getCallHistory(recordId) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/call-history/?record_id=${recordId}`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch call history.');
-    return response.json();
-}
-
+// --- Call History ---
+async function getCallHistory(recordId) { return fetchWithAuth(`${API_BASE_URL}/api/call-history/?record_id=${recordId}`); }
 async function addCallLog(recordId, callDate, summary) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/call-history/`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/call-history/`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            record: recordId,
-            call_date: callDate,
-            summary: summary
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ record: recordId, call_date: callDate, summary: summary }),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to add call log.');
-    }
-    return response.json();
 }
 
+// --- NEW: Event Management Functions ---
+async function getEvents() {
+    return fetchWithAuth(`${API_BASE_URL}/api/events/`);
+}
+async function addEvent(eventName) {
+    return fetchWithAuth(`${API_BASE_URL}/api/events/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: eventName }),
+    });
+}
+async function deleteEvent(eventId) {
+    return fetchWithAuth(`${API_BASE_URL}/api/events/${eventId}/`, {
+        method: 'DELETE',
+    });
+}
+async function assignEventsToRecord(recordId, eventIds) {
+    return fetchWithAuth(`${API_BASE_URL}/api/records/${recordId}/assign_events/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_ids: eventIds }),
+    });
+}

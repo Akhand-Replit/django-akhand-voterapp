@@ -1,14 +1,21 @@
 from rest_framework import serializers
-from .models import Batch, Record, FamilyRelationship, CallHistory
+from .models import Batch, Record, FamilyRelationship, CallHistory, Event
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = ['id', 'name', 'created_at']
 
 class BatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Batch
         fields = ['id', 'name', 'created_at']
 
-
 class RecordSerializer(serializers.ModelSerializer):
     batch_name = serializers.CharField(source='batch.name', read_only=True)
+    # Use PrimaryKeyRelatedField for writing data (expecting a list of event IDs)
+    events = serializers.PrimaryKeyRelatedField(queryset=Event.objects.all(), many=True, required=False)
+
     class Meta:
         model = Record
         fields = [
@@ -17,9 +24,17 @@ class RecordSerializer(serializers.ModelSerializer):
             'jonmo_tarikh', 'thikana', 'phone_number', 'whatsapp_number',
             'facebook_link', 'tiktok_link', 'youtube_link', 'insta_link',
             'photo_link', 'description', 'political_status',
-            'relationship_status', 'gender', 'age', 'created_at'
+            'relationship_status', 'gender', 'age', 'created_at',
+            'events' # Add events to the fields list
         ]
         extra_kwargs = { 'batch': {'write_only': True} }
+
+    # Override to_representation to show event names instead of IDs in API responses
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Replace the list of event IDs with a list of event names for readability
+        representation['events'] = [event.name for event in instance.events.all()]
+        return representation
 
 class SimpleRecordSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,4 +59,3 @@ class CallHistorySerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'record': {'write_only': True} # Only need the ID when creating
         }
-
