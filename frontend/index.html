@@ -68,7 +68,8 @@
                         <li><a href="#" id="nav-age" class="nav-link">Age Management</a></li>
                         <li><a href="#" id="nav-familytree" class="nav-link">Family Tree</a></li>
                         <li><a href="#" id="nav-callhistory" class="nav-link">Call History</a></li>
-                        <li><a href="#" id="nav-events" class="nav-link">Events</a></li> <!-- NEW: Events Link -->
+                        <li><a href="#" id="nav-events" class="nav-link">Event Management</a></li>
+                        <li><a href="#" id="nav-eventfilter" class="nav-link">Event Filter</a></li>
                     </ul>
                 </nav>
                 <div class="p-4 border-t border-gray-700">
@@ -114,7 +115,7 @@
                             <input type="text" id="search-kromik-no" placeholder="Serial Number" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-profession" placeholder="Profession" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-phone" placeholder="Phone Number" class="px-4 py-2 border rounded-lg">
-                            <!-- NEW: Event Filter Dropdown -->
+                            <!-- Event Filter Dropdown Added Back -->
                             <select id="search-event-filter" class="px-4 py-2 border rounded-lg">
                                 <option value="">Filter by Event</option>
                             </select>
@@ -126,7 +127,7 @@
                     <div id="search-pagination" class="mt-6 flex justify-between space-x-2"></div>
                 </section>
                 
-                <!-- Other pages (Add, Upload, etc.) are here and unchanged... -->
+                <!-- Other pages are here and unchanged... -->
                  <section id="add-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Add a New Record</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md">
@@ -250,7 +251,6 @@
                     </div>
                 </section>
                 
-                <!-- NEW: Events Page -->
                 <section id="events-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -263,13 +263,25 @@
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow-md">
                          <h3 class="text-xl font-bold text-gray-800 mb-4">Existing Events</h3>
-                         <div id="events-list-container" class="space-y-3">
-                            <!-- Events will be dynamically inserted here -->
-                         </div>
+                         <div id="events-list-container" class="space-y-3"></div>
                     </div>
                 </section>
 
-                 <!-- Edit Record Modal (unchanged) -->
+                <section id="eventfilter-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Filter by Event</h2>
+                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+                            <select id="event-filter-select" class="flex-grow px-4 py-2 border rounded-lg">
+                                <option value="">Select an Event to Filter</option>
+                            </select>
+                            <button id="event-filter-button" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition w-full md:w-auto">Filter</button>
+                        </div>
+                    </div>
+                    <div id="event-filter-results" class="space-y-4"></div>
+                    <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
+                </section>
+
+                 <!-- Edit Record Modal -->
                 <div id="edit-record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
                     <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
                         <div class="mt-3"><div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl leading-6 font-medium text-gray-900">Edit Record</h3><button id="modal-close-button-x" class="text-gray-400 hover:text-gray-600"><span class="text-2xl">&times;</span></button></div>
@@ -298,3 +310,4 @@
     <script src="js/main.js"></script>
 </body>
 </html>
+
