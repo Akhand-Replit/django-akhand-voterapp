@@ -68,8 +68,6 @@
                         <li><a href="#" id="nav-age" class="nav-link">Age Management</a></li>
                         <li><a href="#" id="nav-familytree" class="nav-link">Family Tree</a></li>
                         <li><a href="#" id="nav-callhistory" class="nav-link">Call History</a></li>
-                        <li><a href="#" id="nav-events" class="nav-link">Event Management</a></li>
-                        <li><a href="#" id="nav-eventfilter" class="nav-link">Event Filter</a></li>
                     </ul>
                 </nav>
                 <div class="p-4 border-t border-gray-700">
@@ -79,7 +77,8 @@
 
             <!-- Main Content -->
             <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
-                <!-- Dashboard Page -->
+                <!-- All page sections go here... -->
+                 <!-- Dashboard Page -->
                 <section id="dashboard-page">
                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Dashboard Overview</h2>
                     <p class="text-gray-600 mb-6">A summary of your voter data.</p>
@@ -115,10 +114,6 @@
                             <input type="text" id="search-kromik-no" placeholder="Serial Number" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-profession" placeholder="Profession" class="px-4 py-2 border rounded-lg">
                             <input type="text" id="search-phone" placeholder="Phone Number" class="px-4 py-2 border rounded-lg">
-                            <!-- Event Filter Dropdown Added Back -->
-                            <select id="search-event-filter" class="px-4 py-2 border rounded-lg">
-                                <option value="">Filter by Event</option>
-                            </select>
                             <input type="text" id="search-address" placeholder="Address" class="lg:col-span-2 px-4 py-2 border rounded-lg">
                             <button type="submit" class="lg:col-span-3 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Search</button>
                         </form>
@@ -127,8 +122,8 @@
                     <div id="search-pagination" class="mt-6 flex justify-between space-x-2"></div>
                 </section>
                 
-                <!-- Other pages are here and unchanged... -->
-                 <section id="add-page" class="hidden">
+                <!-- Add Record Page -->
+                <section id="add-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Add a New Record</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <form id="add-record-form">
@@ -139,7 +134,7 @@
                                 <input type="text" name="pitar_naam" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
                                 <input type="text" name="matar_naam" placeholder="Mother's Name" class="px-4 py-2 border rounded-lg">
                                 <input type="text" name="pesha" placeholder="Profession" class="px-4 py-2 border rounded-lg">
-                                <input type="text" name="jonmo_tarikh" placeholder="Date of Birth (e.g., 10-05-1990)" class="px-4 py-2 border rounded-lg">
+                                <input type="text" name="jonmo_tarikh" placeholder="Date of Birth (e.g., 10/05/1990)" class="px-4 py-2 border rounded-lg">
                                 <select name="batch" id="add-record-batch" class="px-4 py-2 border rounded-lg" required>
                                     <option value="">Select a Batch (Required)</option>
                                 </select>
@@ -150,6 +145,8 @@
                         <p id="add-record-success" class="mt-4 text-green-600"></p>
                     </div>
                 </section>
+
+                <!-- Upload Page -->
                 <section id="upload-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Upload Voter Data</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md">
@@ -169,6 +166,8 @@
                         <div id="upload-status" class="mt-4"></div>
                     </div>
                 </section>
+
+                <!-- All Data (Bulk Edit) Page -->
                 <section id="alldata-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">All Records</h2>
                     <div class="bg-white p-4 rounded-lg shadow-md mb-6">
@@ -181,12 +180,15 @@
                                 <label for="alldata-file-select" class="block text-sm font-medium text-gray-700">Select File</label>
                                 <select id="alldata-file-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
                             </div>
+                            <!-- REMOVED the global save button -->
                         </div>
                     </div>
                     <div id="alldata-table-container" class="bg-white p-2 rounded-lg shadow-md overflow-x-auto"></div>
                     <div id="alldata-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     <div id="alldata-status" class="mt-4"></div>
                 </section>
+
+                <!-- Relationships Page -->
                 <section id="relationships-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Relationship Management</h2>
                     <div class="border-b border-gray-200">
@@ -202,112 +204,247 @@
                         <div id="relationships-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     </div>
                 </section>
+
+                <!-- Analysis Page -->
                 <section id="analysis-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Data Analysis</h2>
                     <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-4 rounded-lg shadow-md"><canvas id="profession-chart-container"></canvas></div>
-                        <div class="bg-white p-4 rounded-lg shadow-md"><canvas id="gender-chart-container"></canvas></div>
-                        <div class="bg-white p-4 rounded-lg shadow-md lg:col-span-2"><canvas id="age-chart-container"></canvas></div>
-                    </div>
-                </section>
-                <section id="age-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Age Management & Analysis</h2>
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Recalculate All Ages</h3>
-                        <p class="text-gray-600 mb-4">This will update the age for all records in the database based on their date of birth.</p>
-                        <button id="recalculate-ages-button" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Start Recalculation</button>
-                        <div id="age-recalculation-status" class="mt-4"></div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow-md"><h3 class="text-xl font-bold text-gray-800 mb-4">Current Age Distribution</h3><canvas id="age-management-chart-container"></canvas></div>
-                </section>
-                <section id="familytree-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Family Tree Management</h2>
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Step 1: Select a Person</h3>
-                        <input type="text" id="family-main-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search by Name or Voter No">
-                        <div id="family-main-search-results" class="space-y-2 mt-2"></div>
-                    </div>
-                    <div id="family-management-section" class="hidden space-y-6">
-                        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-xl font-bold text-gray-800 mb-2">Selected Person</h3><div id="family-selected-person-details"></div></div>
-                        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-xl font-bold text-gray-800 mb-2">Current Family Members</h3><div id="family-current-relatives" class="space-y-2"></div><div id="family-tree-pagination" class="mt-6 flex justify-between space-x-2"></div></div>
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">Step 2: Add a Relative</h3>
-                            <input type="text" id="family-relative-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search for Relative...">
-                            <div id="family-relative-search-results" class="space-y-2 mt-2 mb-4"></div>
-                            <div id="family-add-form" class="hidden"><input type="text" id="relationship-type" class="w-full px-4 py-2 border rounded-lg mb-4" placeholder="e.g., Father, Spouse"><button id="add-relationship-button" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Add Relationship</button><p id="family-add-status" class="mt-4"></p></div>
+                        <div class="bg-white p-4 rounded-lg shadow-md">
+                            <canvas id="profession-chart-container"></canvas>
                         </div>
-                    </div>
-                </section>
-                <section id="callhistory-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Call History</h2>
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-6"><h3 class="text-xl font-bold text-gray-800 mb-2">Search for a Person</h3><input type="text" id="callhistory-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search by Name or Voter No"><div id="callhistory-search-results" class="space-y-2 mt-2"></div></div>
-                    <div id="callhistory-management-section" class="hidden space-y-6">
-                        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-xl font-bold text-gray-800 mb-2">Call Logs For:</h3><div id="callhistory-selected-person"></div></div>
-                        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-xl font-bold text-gray-800 mb-2">Existing Call History</h3><div id="callhistory-logs-container" class="space-y-4"></div><div id="callhistory-pagination" class="mt-6 flex justify-between space-x-2"></div></div>
-                        <div class="bg-white p-6 rounded-lg shadow-md">
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">Add New Call Log</h3>
-                            <form id="add-call-log-form"><div class="mb-4"><label for="call-date" class="block text-gray-700 mb-2">Call Date</label><input type="date" id="call-date" class="w-full px-4 py-2 border rounded-lg" required></div><div class="mb-4"><label for="call-summary" class="block text-gray-700 mb-2">Summary</label><textarea id="call-summary" rows="4" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter a summary..." required></textarea></div><button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Save Log</button><p id="call-log-status" class="mt-4"></p></form>
+                        <div class="bg-white p-4 rounded-lg shadow-md">
+                            <canvas id="gender-chart-container"></canvas>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md lg:col-span-2">
+                             <canvas id="age-chart-container"></canvas>
                         </div>
                     </div>
                 </section>
                 
-                <section id="events-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
+                <!-- Age Management Page -->
+                <section id="age-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Age Management & Analysis</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4">Add New Event</h3>
-                        <form id="add-event-form" class="flex space-x-4">
-                            <input type="text" id="new-event-name" placeholder="New event name" class="flex-grow px-4 py-2 border rounded-lg" required>
-                            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Add Event</button>
-                        </form>
-                        <p id="event-status" class="mt-4 text-green-600"></p>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Recalculate All Ages</h3>
+                        <p class="text-gray-600 mb-4">This will update the age for all records in the database based on their date of birth. This process can take a moment for large datasets.</p>
+                        <button id="recalculate-ages-button" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Start Recalculation</button>
+                        <div id="age-recalculation-status" class="mt-4"></div>
                     </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                         <h3 class="text-xl font-bold text-gray-800 mb-4">Existing Events</h3>
-                         <div id="events-list-container" class="space-y-3"></div>
-                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Current Age Distribution</h3>
+                        <canvas id="age-management-chart-container"></canvas>
+                   </div>
                 </section>
-
-                <section id="eventfilter-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Filter by Event</h2>
-                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
-                            <select id="event-filter-select" class="flex-grow px-4 py-2 border rounded-lg">
-                                <option value="">Select an Event to Filter</option>
-                            </select>
-                            <button id="event-filter-button" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition w-full md:w-auto">Filter</button>
+                <!-- Family Tree Page -->
+                <section id="familytree-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Family Tree Management</h2>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Step 1: Select a Person to Manage</h3>
+                        <div class="mb-4">
+                            <label for="family-main-search" class="block text-gray-700 mb-2">Search by Name or Voter No</label>
+                            <input type="text" id="family-main-search" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., John Doe or 123456">
                         </div>
+                        <div id="family-main-search-results" class="space-y-2"></div>
                     </div>
-                    <div id="event-filter-results" class="space-y-4"></div>
-                    <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
-                </section>
 
-                 <!-- Edit Record Modal -->
-                <div id="edit-record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                    <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
-                        <div class="mt-3"><div class="flex justify-between items-center border-b pb-3"><h3 class="text-xl leading-6 font-medium text-gray-900">Edit Record</h3><button id="modal-close-button-x" class="text-gray-400 hover:text-gray-600"><span class="text-2xl">&times;</span></button></div>
-                            <div class="mt-4 px-7 py-3 max-h-[70vh] overflow-y-auto">
-                                <form id="edit-record-form" class="text-left">
-                                    <input type="hidden" id="edit-record-id">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div class="space-y-4"><div><label for="edit-naam" class="block text-sm font-medium text-gray-700">Name</label><input type="text" id="edit-naam" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-voter-no" class="block text-sm font-medium text-gray-700">Voter No</label><input type="text" id="edit-voter-no" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-kromik-no" class="block text-sm font-medium text-gray-700">Kromik No</label><input type="text" id="edit-kromik-no" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-jonmo-tarikh" class="block text-sm font-medium text-gray-700">Date of Birth</label><input type="text" id="edit-jonmo-tarikh" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-gender" class="block text-sm font-medium text-gray-700">Gender</label><input type="text" id="edit-gender" class="mt-1 w-full px-3 py-2 border rounded-md"></div></div>
-                                        <div class="space-y-4"><div><label for="edit-pitar-naam" class="block text-sm font-medium text-gray-700">Father's Name</label><input type="text" id="edit-pitar-naam" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-matar-naam" class="block text-sm font-medium text-gray-700">Mother's Name</label><input type="text" id="edit-matar-naam" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-pesha" class="block text-sm font-medium text-gray-700">Profession</label><input type="text" id="edit-pesha" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-occupation-details" class="block text-sm font-medium text-gray-700">Occupation Details</label><textarea id="edit-occupation-details" rows="3" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea></div></div>
-                                        <div class="space-y-4"><div><label for="edit-phone-number" class="block text-sm font-medium text-gray-700">Phone Number</label><input type="text" id="edit-phone-number" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-whatsapp-number" class="block text-sm font-medium text-gray-700">WhatsApp Number</label><input type="text" id="edit-whatsapp-number" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-facebook-link" class="block text-sm font-medium text-gray-700">Facebook Link</label><input type="text" id="edit-facebook-link" class="mt-1 w-full px-3 py-2 border rounded-md"></div><div><label for="edit-photo-link" class="block text-sm font-medium text-gray-700">Photo Link</label><input type="text" id="edit-photo-link" class="mt-1 w-full px-3 py-2 border rounded-md"></div></div>
-                                        <div class="md:col-span-3"><label for="edit-thikana" class="block text-sm font-medium text-gray-700">Address</label><textarea id="edit-thikana" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea></div>
-                                        <div class="md:col-span-3"><label for="edit-description" class="block text-sm font-medium text-gray-700">Description</label><textarea id="edit-description" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea></div>
-                                        <div class="md:col-span-3"><label for="edit-political-status" class="block text-sm font-medium text-gray-700">Political Status</label><textarea id="edit-political-status" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea></div>
-                                        <div class="md:col-span-3"><label for="edit-relationship-status" class="block text-sm font-medium text-gray-700">Relationship</label><select id="edit-relationship-status" class="mt-1 w-full px-3 py-2 border rounded-md"><option value="Regular">Regular</option><option value="Friend">Friend</option><option value="Enemy">Enemy</option><option value="Connected">Connected</option></select></div>
-                                    </div>
-                                </form>
+                    <div id="family-management-section" class="hidden">
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Selected Person</h3>
+                            <div id="family-selected-person-details"></div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                             <h3 class="text-xl font-bold text-gray-800 mb-2">Current Family Members</h3>
+                             <div id="family-current-relatives" class="space-y-2"></div>
+                             <div id="family-tree-pagination" class="mt-6 flex justify-between space-x-2"></div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Step 2: Add a Relative</h3>
+                            <div class="mb-4">
+                                <label for="family-relative-search" class="block text-gray-700 mb-2">Search for Relative to Add</label>
+                                <input type="text" id="family-relative-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search by name or voter no...">
                             </div>
-                            <div class="items-center px-4 py-3 border-t mt-4 text-right"><button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">Cancel</button><button id="modal-save-button" class="ml-4 px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">Save Changes</button></div>
+                            <div id="family-relative-search-results" class="space-y-2 mb-4"></div>
+                            
+                            <div id="family-add-form" class="hidden">
+                                <div class="mb-4">
+                                    <label for="relationship-type" class="block text-gray-700 mb-2">Relationship Type</label>
+                                    <input type="text" id="relationship-type" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., Father, Spouse, Daughter">
+                                </div>
+                                <button id="add-relationship-button" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Add Relationship</button>
+                                <p id="family-add-status" class="mt-4"></p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </section>
+                <!-- Call History Page -->
+                <section id="callhistory-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Call History Management</h2>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Search for a Person</h3>
+                        <div class="mb-4">
+                            <label for="callhistory-search" class="block text-gray-700 mb-2">Search by Name or Voter No</label>
+                            <input type="text" id="callhistory-search" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., Jane Doe or 654321">
+                        </div>
+                        <div id="callhistory-search-results" class="space-y-2"></div>
+                    </div>
+
+                    <div id="callhistory-management-section" class="hidden">
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Call Logs For:</h3>
+                            <div id="callhistory-selected-person"></div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                             <h3 class="text-xl font-bold text-gray-800 mb-2">Existing Call History</h3>
+                             <div id="callhistory-logs-container" class="space-y-4"></div>
+                             <div id="callhistory-pagination" class="mt-6 flex justify-between space-x-2"></div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Add New Call Log</h3>
+                            <form id="add-call-log-form">
+                                <div class="mb-4">
+                                    <label for="call-date" class="block text-gray-700 mb-2">Call Date</label>
+                                    <input type="date" id="call-date" class="w-full px-4 py-2 border rounded-lg" required>
+                                </div>
+                                <div class="mb-4">
+                                     <label for="call-summary" class="block text-gray-700 mb-2">Summary</label>
+                                     <textarea id="call-summary" rows="4" class="w-full px-4 py-2 border rounded-lg" placeholder="Enter a brief summary of the call..." required></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Save Log</button>
+                                <p id="call-log-status" class="mt-4"></p>
+                            </form>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
+
+        <!-- NEW: Edit Record Modal -->
+        <div id="edit-record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 class="text-xl leading-6 font-medium text-gray-900">Edit Record</h3>
+                        <button id="modal-close-button-x" class="text-gray-400 hover:text-gray-600">
+                            <span class="text-2xl">&times;</span>
+                        </button>
+                    </div>
+                    <div class="mt-4 px-7 py-3 max-h-[70vh] overflow-y-auto">
+                        <form id="edit-record-form" class="text-left">
+                            <input type="hidden" id="edit-record-id">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                
+                                <!-- Column 1: Basic Info -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-naam" class="block text-sm font-medium text-gray-700">Name</label>
+                                        <input type="text" id="edit-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-voter-no" class="block text-sm font-medium text-gray-700">Voter No</label>
+                                        <input type="text" id="edit-voter-no" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-kromik-no" class="block text-sm font-medium text-gray-700">Kromik No</label>
+                                        <input type="text" id="edit-kromik-no" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-jonmo-tarikh" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                                        <input type="text" id="edit-jonmo-tarikh" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                                        <input type="text" id="edit-gender" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Column 2: Family & Work -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-pitar-naam" class="block text-sm font-medium text-gray-700">Father's Name</label>
+                                        <input type="text" id="edit-pitar-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-matar-naam" class="block text-sm font-medium text-gray-700">Mother's Name</label>
+                                        <input type="text" id="edit-matar-naam" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-pesha" class="block text-sm font-medium text-gray-700">Profession</label>
+                                        <input type="text" id="edit-pesha" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                     <div>
+                                        <label for="edit-occupation-details" class="block text-sm font-medium text-gray-700">Occupation Details</label>
+                                        <textarea id="edit-occupation-details" rows="3" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Column 3: Contact & Social -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit-phone-number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                                        <input type="text" id="edit-phone-number" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-whatsapp-number" class="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                                        <input type="text" id="edit-whatsapp-number" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-facebook-link" class="block text-sm font-medium text-gray-700">Facebook Link</label>
+                                        <input type="text" id="edit-facebook-link" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="edit-photo-link" class="block text-sm font-medium text-gray-700">Photo Link</label>
+                                        <input type="text" id="edit-photo-link" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                    </div>
+                                </div>
+
+                                <!-- Full Width Fields -->
+                                <div class="md:col-span-3">
+                                    <label for="edit-thikana" class="block text-sm font-medium text-gray-700">Address</label>
+                                    <textarea id="edit-thikana" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                 <div class="md:col-span-3">
+                                    <label for="edit-description" class="block text-sm font-medium text-gray-700">Description</label>
+                                    <textarea id="edit-description" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                <div class="md:col-span-3">
+                                    <label for="edit-political-status" class="block text-sm font-medium text-gray-700">Political Status</label>
+                                    <textarea id="edit-political-status" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
+                                </div>
+                                <div class="md:col-span-3">
+                                     <label for="edit-relationship-status" class="block text-sm font-medium text-gray-700">Relationship</label>
+                                     <select id="edit-relationship-status" class="mt-1 w-full px-3 py-2 border rounded-md">
+                                         <option value="Regular">Regular</option>
+                                         <option value="Friend">Friend</option>
+                                         <option value="Enemy">Enemy</option>
+                                         <option value="Connected">Connected</option>
+                                     </select>
+                                 </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="items-center px-4 py-3 border-t mt-4 text-right">
+                        <button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            Cancel
+                        </button>
+                        <button id="modal-save-button" class="ml-4 px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
+
+
 

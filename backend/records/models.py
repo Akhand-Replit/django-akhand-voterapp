@@ -7,16 +7,6 @@ class Batch(models.Model):
     def __str__(self):
         return self.name
 
-class Event(models.Model):
-    """
-    Represents a distinct event that records can be associated with.
-    """
-    name = models.CharField(max_length=255, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.name
-
 class Record(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, db_index=True)
     file_name = models.CharField(max_length=255)
@@ -44,9 +34,6 @@ class Record(models.Model):
     gender = models.CharField(max_length=10, blank=True, null=True, db_index=True)
     age = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    # Many-to-many relationship with Event
-    events = models.ManyToManyField(Event, blank=True, related_name="records")
 
     def __str__(self):
         return self.naam
@@ -62,6 +49,7 @@ class FamilyRelationship(models.Model):
     def __str__(self):
         return f"{self.relative.naam} is the {self.relationship_type} of {self.person.naam}"
 
+# --- NEW MODEL FOR CALL HISTORY ---
 class CallHistory(models.Model):
     """
     Stores a log of calls made to a specific voter record.
@@ -72,7 +60,8 @@ class CallHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-call_date', '-created_at']
+        ordering = ['-call_date', '-created_at'] # Show the most recent calls first
 
     def __str__(self):
         return f"Call to {self.record.naam} on {self.call_date}"
+
