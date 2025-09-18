@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        /* Custom style for sidebar positioning and transition */
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
@@ -37,10 +36,8 @@
 
     <!-- Main Application Container -->
     <div id="app-container" class="hidden">
-        <!-- Main layout with sidebar and content -->
         <div class="relative min-h-screen md:flex">
             
-            <!-- Mobile Menu Button -->
             <div class="bg-gray-800 text-gray-100 flex justify-between md:hidden">
                 <a href="#" class="block p-4 text-white font-bold">Akhand Data</a>
                 <button id="mobile-menu-button" class="p-4 focus:outline-none focus:bg-gray-700">
@@ -50,7 +47,6 @@
                 </button>
             </div>
 
-            <!-- Sidebar -->
             <aside id="sidebar" class="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition duration-200 ease-in-out z-20 flex flex-col">
                 <div class="p-4 border-b border-gray-700">
                     <h1 class="text-2xl font-bold">Akhand Data</h1>
@@ -63,7 +59,6 @@
                         <li><a href="#" id="nav-add" class="nav-link">Add Record</a></li>
                         <li><a href="#" id="nav-upload" class="nav-link">Upload Data</a></li>
                         <li><a href="#" id="nav-alldata" class="nav-link">All Data (Bulk Edit)</a></li>
-                        <!-- NEW NAVIGATION LINK -->
                         <li><a href="#" id="nav-events" class="nav-link">Event Management</a></li>
                         <li><a href="#" id="nav-relationships" class="nav-link">Relationships</a></li>
                         <li><a href="#" id="nav-analysis" class="nav-link">Analysis</a></li>
@@ -77,9 +72,8 @@
                 </div>
             </aside>
 
-            <!-- Main Content -->
             <main class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
-                <!-- All page sections go here... -->
+                
                  <!-- Dashboard Page -->
                 <section id="dashboard-page">
                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Dashboard Overview</h2>
@@ -182,12 +176,42 @@
                                 <label for="alldata-file-select" class="block text-sm font-medium text-gray-700">Select File</label>
                                 <select id="alldata-file-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
                             </div>
-                            <!-- REMOVED the global save button -->
                         </div>
                     </div>
                     <div id="alldata-table-container" class="bg-white p-2 rounded-lg shadow-md overflow-x-auto"></div>
                     <div id="alldata-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     <div id="alldata-status" class="mt-4"></div>
+                </section>
+
+                <!-- Event Management Page -->
+                <section id="events-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Add & Manage Events</h3>
+                        <form id="add-event-form" class="mb-6 flex space-x-2">
+                            <input type="text" id="new-event-name" placeholder="New Event Name" class="flex-grow px-4 py-2 border rounded-lg" required>
+                            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Add Event</button>
+                        </form>
+                        <p id="add-event-status" class="text-sm"></p>
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Existing Events</h4>
+                        <div id="existing-events-list" class="space-y-2">
+                            <p class="text-gray-500">Loading events...</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Filter Records by Event</h3>
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+                            <div>
+                                <label for="event-filter-select" class="block text-sm font-medium text-gray-700">Select an Event</label>
+                                <select id="event-filter-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                    <option>Select an event to filter</option>
+                                </select>
+                            </div>
+                             <button id="filter-by-event-button" class="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition mt-5">Filter Records</button>
+                        </div>
+                        <div id="event-filter-results" class="mt-6 space-y-4"></div>
+                         <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
+                    </div>
                 </section>
 
                 <!-- Relationships Page -->
@@ -323,55 +347,10 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- NEW EVENT MANAGEMENT PAGE -->
-                <section id="events-page" class="hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
-
-                    <!-- Part 1: Add and View Events -->
-                    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4">Add & Manage Events</h3>
-                        
-                        <!-- Add Event Form -->
-                        <form id="add-event-form" class="mb-6 flex space-x-2">
-                            <input type="text" id="new-event-name" placeholder="New Event Name" class="flex-grow px-4 py-2 border rounded-lg" required>
-                            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Add Event</button>
-                        </form>
-                        <p id="add-event-status" class="text-sm"></p>
-
-                        <!-- Existing Events List -->
-                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Existing Events</h4>
-                        <div id="existing-events-list" class="space-y-2">
-                            <!-- Events will be populated here by JavaScript -->
-                            <p class="text-gray-500">Loading events...</p>
-                        </div>
-                    </div>
-
-                    <!-- Part 2: Filter Records by Event -->
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4">Filter Records by Event</h3>
-                        
-                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
-                            <div>
-                                <label for="event-filter-select" class="block text-sm font-medium text-gray-700">Select an Event</label>
-                                <select id="event-filter-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                    <option>Select an event to filter</option>
-                                </select>
-                            </div>
-                             <button id="filter-by-event-button" class="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition mt-5">Filter Records</button>
-                        </div>
-
-                        <div id="event-filter-results" class="mt-6 space-y-4">
-                            <!-- Filtered records will be displayed here -->
-                        </div>
-                         <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
-                    </div>
-                </section>
-
             </main>
         </div>
 
-        <!-- NEW: Edit Record Modal -->
+        <!-- Edit Record Modal -->
         <div id="edit-record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
                 <div class="mt-3">
@@ -386,7 +365,6 @@
                             <input type="hidden" id="edit-record-id">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 
-                                <!-- Column 1: Basic Info -->
                                 <div class="space-y-4">
                                     <div>
                                         <label for="edit-naam" class="block text-sm font-medium text-gray-700">Name</label>
@@ -410,7 +388,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Column 2: Family & Work -->
                                 <div class="space-y-4">
                                     <div>
                                         <label for="edit-pitar-naam" class="block text-sm font-medium text-gray-700">Father's Name</label>
@@ -430,7 +407,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Column 3: Contact & Social -->
                                 <div class="space-y-4">
                                     <div>
                                         <label for="edit-phone-number" class="block text-sm font-medium text-gray-700">Phone Number</label>
@@ -449,8 +425,6 @@
                                         <input type="text" id="edit-photo-link" class="mt-1 w-full px-3 py-2 border rounded-md">
                                     </div>
                                 </div>
-
-                                <!-- Full Width Fields -->
                                 <div class="md:col-span-3">
                                     <label for="edit-thikana" class="block text-sm font-medium text-gray-700">Address</label>
                                     <textarea id="edit-thikana" rows="2" class="mt-1 w-full px-3 py-2 border rounded-md"></textarea>
@@ -472,6 +446,13 @@
                                          <option value="Connected">Connected</option>
                                      </select>
                                  </div>
+                                <!-- NEW: Event Assignment in Modal -->
+                                <div id="modal-events-container" class="md:col-span-3">
+                                    <label class="block text-sm font-medium text-gray-700">Assign to Events</label>
+                                    <div id="edit-events-checkboxes" class="mt-2 space-y-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                                        <!-- Checkboxes will be populated here -->
+                                    </div>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -490,10 +471,6 @@
 
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
-        <!-- NEW SCRIPT FILE -->
-    <script src="js/additional.js"></script>
 </body>
 </html>
-
-
 

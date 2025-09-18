@@ -5,19 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const loginError = document.getElementById('login-error');
     const logoutButton = document.getElementById('logout-button');
-
-    // --- NEW: Mobile Menu Elements ---
     const sidebar = document.getElementById('sidebar');
     const mobileMenuButton = document.getElementById('mobile-menu-button');
 
-    // --- Page Navigation Elements ---
     const navLinks = {
         dashboard: document.getElementById('nav-dashboard'),
         search: document.getElementById('nav-search'),
         add: document.getElementById('nav-add'),
         upload: document.getElementById('nav-upload'),
         alldata: document.getElementById('nav-alldata'),
-        events: document.getElementById('nav-events'), // --- ADDED ---
+        events: document.getElementById('nav-events'),
         relationships: document.getElementById('nav-relationships'),
         analysis: document.getElementById('nav-analysis'),
         age: document.getElementById('nav-age'),
@@ -31,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         add: document.getElementById('add-page'),
         upload: document.getElementById('upload-page'),
         alldata: document.getElementById('alldata-page'),
-        events: document.getElementById('events-page'), // --- ADDED ---
+        events: document.getElementById('events-page'),
         relationships: document.getElementById('relationships-page'),
         analysis: document.getElementById('analysis-page'),
         age: document.getElementById('age-page'),
@@ -39,21 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
         callhistory: document.getElementById('callhistory-page'),
     };
 
-    // --- Search Page Elements ---
     const searchForm = document.getElementById('search-form');
     const searchResultsContainer = document.getElementById('search-results');
     const searchPaginationContainer = document.getElementById('search-pagination');
-
-    // --- Add Record Page Elements ---
     const addRecordForm = document.getElementById('add-record-form');
     const addRecordBatchSelect = document.getElementById('add-record-batch');
     const addRecordSuccessMessage = document.getElementById('add-record-success');
-
-    // --- Upload Page Elements ---
     const uploadDataForm = document.getElementById('upload-data-form');
     const uploadStatus = document.getElementById('upload-status');
-
-    // --- All Data Page Elements ---
     const allDataBatchSelect = document.getElementById('alldata-batch-select');
     const allDataFileSelect = document.getElementById('alldata-file-select');
     const allDataTableContainer = document.getElementById('alldata-table-container');
@@ -62,28 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalRecords = [];
     let currentAllDataParams = {};
 
-    // --- NEW: Modal Elements ---
     const editRecordModal = document.getElementById('edit-record-modal');
     const editRecordForm = document.getElementById('edit-record-form');
     const modalCloseButton = document.getElementById('modal-close-button');
-    const modalCloseButtonX = document.getElementById('modal-close-button-x'); // New X button
+    const modalCloseButtonX = document.getElementById('modal-close-button-x');
     const modalSaveButton = document.getElementById('modal-save-button');
     const editRecordIdInput = document.getElementById('edit-record-id');
-
-
-    // --- Relationships Page Elements ---
     const relTabs = document.querySelectorAll('.rel-tab-button');
     const relContentContainer = document.getElementById('relationships-content');
     const relPaginationContainer = document.getElementById('relationships-pagination');
-
-    // --- Analysis Page Elements ---
     const analysisContent = document.getElementById('analysis-content');
-
-    // --- Age Management Page Elements ---
     const recalculateAgesButton = document.getElementById('recalculate-ages-button');
     const ageRecalculationStatus = document.getElementById('age-recalculation-status');
-
-    // --- Family Tree Page Elements ---
     const familyMainSearchInput = document.getElementById('family-main-search');
     const familyMainSearchResults = document.getElementById('family-main-search-results');
     const familyManagementSection = document.getElementById('family-management-section');
@@ -98,8 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const familyTreePagination = document.getElementById('family-tree-pagination');
     let selectedPersonId = null;
     let selectedRelativeId = null;
-
-    // --- Call History Elements ---
     const callHistorySearchInput = document.getElementById('callhistory-search');
     const callHistorySearchResults = document.getElementById('callhistory-search-results');
     const callHistoryManagementSection = document.getElementById('callhistory-management-section');
@@ -109,13 +87,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const callLogStatus = document.getElementById('call-log-status');
     const callHistoryPagination = document.getElementById('callhistory-pagination');
     let selectedPersonForCallHistory = null;
+    const addEventForm = document.getElementById('add-event-form');
+    const newEventNameInput = document.getElementById('new-event-name');
+    const addEventStatus = document.getElementById('add-event-status');
+    const existingEventsList = document.getElementById('existing-events-list');
+    const eventFilterSelect = document.getElementById('event-filter-select');
+    const filterByEventButton = document.getElementById('filter-by-event-button');
+    const eventFilterResults = document.getElementById('event-filter-results');
+    const eventFilterPagination = document.getElementById('event-filter-pagination');
 
 
     // --- Event Listeners ---
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
     if (logoutButton) logoutButton.addEventListener('click', handleLogout);
     
-    // NEW: Mobile menu toggle
     if(mobileMenuButton) mobileMenuButton.addEventListener('click', () => {
         sidebar.classList.toggle('-translate-x-full');
     });
@@ -137,30 +122,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addRelationshipButton) addRelationshipButton.addEventListener('click', handleAddRelationship);
     if (callHistorySearchInput) callHistorySearchInput.addEventListener('input', debounce(handleCallHistorySearch, 300));
     if (addCallLogForm) addCallLogForm.addEventListener('submit', handleAddCallLog);
+    if (addEventForm) addEventForm.addEventListener('submit', handleAddEvent);
+    if (filterByEventButton) filterByEventButton.addEventListener('click', () => handleFilterByEvent());
 
-    // --- NEW: Modal Event Listeners ---
     if (modalCloseButton) modalCloseButton.addEventListener('click', () => editRecordModal.classList.add('hidden'));
     if (modalCloseButtonX) modalCloseButtonX.addEventListener('click', () => editRecordModal.classList.add('hidden'));
     if (modalSaveButton) modalSaveButton.addEventListener('click', handleModalSave);
 
-    // --- NEW: Event delegation for All Data table ---
     if (allDataTableContainer) {
         allDataTableContainer.addEventListener('click', (e) => {
-            // Handle Edit button clicks
             if (e.target.classList.contains('edit-btn')) {
                 const recordId = e.target.dataset.recordId;
                 openEditModal(recordId);
             }
-
-            // Handle row highlighting
             const row = e.target.closest('tr');
             if (row) {
-                // Remove highlight from any previously selected row
                 const currentlyHighlighted = allDataTableContainer.querySelector('.highlight-row');
                 if (currentlyHighlighted) {
                     currentlyHighlighted.classList.remove('highlight-row');
                 }
-                // Add highlight to the clicked row
                 row.classList.add('highlight-row');
             }
         });
@@ -174,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const pageName = e.target.id.split('-')[1];
         navigateTo(pageName);
-        // NEW: Hide sidebar on mobile after clicking a link
         if (sidebar && sidebar.classList.contains('md:relative')) {
            if(!sidebar.classList.contains('-translate-x-full')) {
                sidebar.classList.add('-translate-x-full');
@@ -183,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-        async function handleSearch(e, url = null) { 
+    async function handleSearch(e, url = null) { 
         if (e) e.preventDefault(); 
         if (!searchResultsContainer) return; 
         searchResultsContainer.innerHTML = '<p class="text-gray-500">Searching...</p>'; 
@@ -196,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 voter_no: document.getElementById('search-voter-no').value, 
                 pitar_naam__icontains: document.getElementById('search-father-name').value, 
                 thikana__icontains: document.getElementById('search-address').value, 
-                // --- NEW SEARCH PARAMETERS ---
                 matar_naam__icontains: document.getElementById('search-mother-name').value,
                 kromik_no: document.getElementById('search-kromik-no').value,
                 pesha__icontains: document.getElementById('search-profession').value,
@@ -205,7 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
             searchParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v.trim() !== '')); 
         } 
         try { 
-            const data = await searchRecords(searchParams); 
+            const data = await searchRecords(searchParams);
+            originalRecords = data.results; // Store search results for the modal
             displaySearchResults(data.results); 
             displayPaginationControls(searchPaginationContainer, data.previous, data.next, (nextUrl) => handleSearch(null, nextUrl)); 
         } catch (error) { 
@@ -214,15 +193,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
     async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
-// ... existing code ... -->
-    async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
-    async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleAllDataBatchSelect() { const batchId = allDataBatchSelect.value; if (!allDataFileSelect || !allDataTableContainer) return; allDataFileSelect.innerHTML = '<option value="">Loading files...</option>'; allDataTableContainer.innerHTML = ''; originalRecords = []; if (!batchId) { allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; return; } try { const files = await getBatchFiles(batchId); allDataFileSelect.innerHTML = '<option value="all">All Files</option>'; files.forEach(file => { const option = document.createElement('option'); option.value = file; option.textContent = file; allDataFileSelect.appendChild(option); }); handleAllDataFileSelect(); } catch (error) { allDataFileSelect.innerHTML = '<option value="">Error loading files</option>'; console.error(error); } }
     async function handleAllDataFileSelect(url = null) { if (!allDataBatchSelect || !allDataFileSelect || !allDataTableContainer) return; const batchId = allDataBatchSelect.value; const fileName = allDataFileSelect.value; allDataTableContainer.innerHTML = '<p class="p-4 text-gray-500">Loading records...</p>'; if (!batchId) return; let params; if (url) { params = url; } else { currentAllDataParams = { batch: batchId }; if (fileName && fileName !== 'all') { currentAllDataParams.file_name = fileName; } params = currentAllDataParams; } try { const data = await searchRecords(params); originalRecords = data.results; renderReadOnlyTable(data.results);
- displayPaginationControls(allDataPaginationContainer, data.previous, data.next, handleAllDataFileSelect); } catch (error) { allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; } }
+    displayPaginationControls(allDataPaginationContainer, data.previous, data.next, handleAllDataFileSelect); } catch (error) { allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; } }
     
-    // --- NEW: Modal and related functions ---
-    function openEditModal(recordId) {
+    async function openEditModal(recordId) {
         const record = originalRecords.find(r => r.id == recordId);
         if (!record) {
             alert('Could not find record details.');
@@ -248,6 +223,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('edit-political-status').value = record.political_status || '';
         document.getElementById('edit-relationship-status').value = record.relationship_status || 'Regular';
         
+        // --- NEW: Populate events in the modal ---
+        const eventsContainer = document.getElementById('edit-events-checkboxes');
+        eventsContainer.innerHTML = 'Loading events...';
+        try {
+            const allEventsResponse = await getEvents();
+            const allEvents = allEventsResponse.results;
+            eventsContainer.innerHTML = '';
+            
+            allEvents.forEach(event => {
+                const isChecked = record.event_names.includes(event.name);
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.className = 'flex items-center';
+                checkboxDiv.innerHTML = `
+                    <input id="event-${event.id}" name="events" type="checkbox" value="${event.id}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" ${isChecked ? 'checked' : ''}>
+                    <label for="event-${event.id}" class="ml-2 block text-sm text-gray-900">${event.name}</label>
+                `;
+                eventsContainer.appendChild(checkboxDiv);
+            });
+
+        } catch (error) {
+            eventsContainer.innerHTML = '<p class="text-red-500">Could not load events.</p>';
+        }
+
         editRecordModal.classList.remove('hidden');
     }
 
@@ -273,16 +271,27 @@ document.addEventListener('DOMContentLoaded', () => {
             relationship_status: document.getElementById('edit-relationship-status').value,
         };
 
-        allDataStatus.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
+        // --- NEW: Get selected event IDs from the modal ---
+        const selectedEventIds = Array.from(document.querySelectorAll('#edit-events-checkboxes input:checked')).map(cb => cb.value);
+
+        const statusContainer = document.querySelector('.active')?.id === 'alldata-page' ? allDataStatus : searchResultsContainer;
+        statusContainer.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
         
         try {
             await updateRecord(recordId, updatedData);
-            allDataStatus.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
+            await assignEventsToRecord(recordId, selectedEventIds);
+
+            statusContainer.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
             editRecordModal.classList.add('hidden');
-            // Refresh the table to show the updated data
-            handleAllDataFileSelect(currentAllDataParams); 
+            
+            // Refresh the current view
+            if (document.querySelector('.active')?.id === 'alldata-page') {
+                 handleAllDataFileSelect(currentAllDataParams);
+            } else {
+                 handleSearch(null); // Re-run the last search
+            }
         } catch (error) {
-            allDataStatus.innerHTML = `<p class="text-red-600">Error saving changes: ${error.message}</p>`;
+            statusContainer.innerHTML = `<p class="text-red-500">Error saving changes: ${error.message}</p>`;
         }
     }
 
@@ -300,51 +309,114 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadCallHistory(recordId, url = null) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">Loading history...</p>'; try { const data = await getCallHistory(recordId, url); callHistoryLogsContainer.innerHTML = ''; if (data.results.length === 0) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">No call history found for this person.</p>'; } else { data.results.forEach(log => { const logDiv = document.createElement('div'); logDiv.className = 'p-3 border rounded-lg bg-gray-50'; logDiv.innerHTML = ` <p class="font-bold text-gray-700">${log.call_date}</p> <p class="text-gray-600 mt-1">${log.summary}</p> `; callHistoryLogsContainer.appendChild(logDiv); }); } displayPaginationControls(callHistoryPagination, data.previous, data.next, (nextUrl) => loadCallHistory(recordId, nextUrl)); } catch (error) { callHistoryLogsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddCallLog(event) { event.preventDefault(); const callDate = document.getElementById('call-date').value; const summary = document.getElementById('call-summary').value.trim(); if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } callLogStatus.textContent = 'Saving...'; try { await addCallLog(selectedPersonForCallHistory.id, callDate, summary); callLogStatus.textContent = 'Log saved successfully!'; addCallLogForm.reset(); loadCallHistory(selectedPersonForCallHistory.id); } catch (error) { callLogStatus.textContent = `Error: ${error.message}`; } }
 
-    // --- UI Update Functions ---
-    // function navigateTo(pageName) { if (!pages[pageName]) return; Object.values(pages).forEach(page => page && page.classList.add('hidden')); Object.values(navLinks).forEach(link => link && link.classList.remove('active')); pages[pageName].classList.remove('hidden'); navLinks[pageName].classList.add('active'); if (pageName === 'add') populateBatchDropdown(); if (pageName === 'alldata') initializeAllDataPage(); if (pageName === 'relationships') initializeRelationshipsPage(); if (pageName === 'analysis') initializeAnalysisPage(); if (pageName === 'age') initializeAgeManagementPage(); if (pageName === 'familytree') initializeFamilyTreePage(); if (pageName === 'callhistory') initializeCallHistoryPage(); }
-        function navigateTo(pageName) {
-        if (!pages[pageName]) return;
-        Object.values(pages).forEach(page => page && page.classList.add('hidden'));
-        Object.values(navLinks).forEach(link => link && link.classList.remove('active'));
-        pages[pageName].classList.remove('hidden');
-        navLinks[pageName].classList.add('active');
-        
-        // --- ADDED INITIALIZER CALL ---
-        if (pageName === 'events') initializeEventsPage();
-
-        if (pageName === 'add') populateBatchDropdown();
-        if (pageName === 'alldata') initializeAllDataPage();
-        if (pageName === 'relationships') initializeRelationshipsPage();
-        if (pageName === 'analysis') initializeAnalysisPage();
-        if (pageName === 'age') initializeAgeManagementPage();
-        if (pageName === 'familytree') initializeFamilyTreePage();
-        if (pageName === 'callhistory') initializeCallHistoryPage();
+    async function initializeEventsPage() {
+        try {
+            const eventsResponse = await getEvents();
+            populateEventList(eventsResponse.results);
+            populateEventFilterDropdown(eventsResponse.results);
+        } catch (error) {
+            if(existingEventsList) existingEventsList.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+            if(eventFilterSelect) eventFilterSelect.innerHTML = `<option>Error loading events</option>`;
+        }
     }
-    
-    function displayPaginationControls(container, prevUrl, nextUrl, callback) { if (!container) return; container.innerHTML = ''; const prevButton = document.createElement('button'); prevButton.textContent = 'Previous'; prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; prevButton.disabled = !prevUrl; prevButton.addEventListener('click', () => callback(prevUrl)); const nextButton = document.createElement('button'); nextButton.textContent = 'Next'; nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; nextButton.disabled = !nextUrl; nextButton.addEventListener('click', () => callback(nextUrl)); container.appendChild(prevButton); container.appendChild(nextButton); }
-    
-    function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50'; // Add cursor pointer for better UX
- row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap">${record.naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.voter_no || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.pitar_naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.thikana || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.relationship_status || ''}</td> <td class="px-6 py-4 whitespace-nowrap"> <button data-record-id="${record.id}" class="edit-btn text-indigo-600 hover:text-indigo-900">Edit</button> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
 
-    function displayRelationshipList(status, url = null) { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; relPaginationContainer.innerHTML = ''; const params = { relationship_status: status }; searchRecords(url || params).then(data => { if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } const listContainer = document.createElement('div'); listContainer.className = 'space-y-4'; data.results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; listContainer.appendChild(card); }); relContentContainer.innerHTML = ''; relContentContainer.appendChild(listContainer); displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }); }
-    async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
-    
-    // --- MODIFIED to render new detailed card ---
-    function displaySearchResults(results) {
-        if (!searchResultsContainer) return;
-        searchResultsContainer.innerHTML = '';
-        if (!results || results.length === 0) {
-            searchResultsContainer.innerHTML = '<p class="text-gray-600">No results found.</p>';
+    async function handleAddEvent(e) {
+        e.preventDefault();
+        const eventName = newEventNameInput.value.trim();
+        if (!eventName) {
+            addEventStatus.textContent = 'Event name cannot be empty.';
+            addEventStatus.className = 'text-red-500 text-sm';
             return;
         }
+        addEventStatus.textContent = 'Adding...';
+        addEventStatus.className = 'text-blue-600 text-sm';
+        try {
+            await addEvent(eventName);
+            addEventStatus.textContent = 'Event added successfully!';
+            addEventStatus.className = 'text-green-600 text-sm';
+            addEventForm.reset();
+            initializeEventsPage();
+        } catch (error) {
+            addEventStatus.textContent = error.message;
+            addEventStatus.className = 'text-red-500 text-sm';
+        }
+    }
 
-        results.forEach(record => {
+    async function handleDeleteEvent(eventId) {
+        if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) {
+            return;
+        }
+        try {
+            await deleteEvent(eventId);
+            initializeEventsPage();
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    async function handleFilterByEvent(url = null) {
+        const eventId = eventFilterSelect.value;
+        if (!eventId || isNaN(parseInt(eventId))) {
+            eventFilterResults.innerHTML = '<p class="text-gray-600">Please select a valid event to filter.</p>';
+            return;
+        }
+        eventFilterResults.innerHTML = '<p class="text-gray-500">Loading records...</p>';
+        try {
+            const data = await getRecordsForEvent(eventId, url);
+            displayEventRecords(data.results);
+            displayPaginationControls(eventFilterPagination, data.previous, data.next, (nextUrl) => handleFilterByEvent(nextUrl));
+        } catch (error) {
+            eventFilterResults.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+        }
+    }
+
+    function populateEventList(events) {
+        if (!existingEventsList) return;
+        existingEventsList.innerHTML = '';
+        if (!events || events.length === 0) {
+            existingEventsList.innerHTML = '<p class="text-gray-500">No events created yet.</p>';
+            return;
+        }
+        events.forEach(event => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center p-2 border-b';
+            div.innerHTML = `
+                <span>${event.name}</span>
+                <button data-event-id="${event.id}" class="delete-event-btn text-red-500 hover:text-red-700 text-sm">Delete</button>
+            `;
+            existingEventsList.appendChild(div);
+        });
+        document.querySelectorAll('.delete-event-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const eventId = e.target.dataset.eventId;
+                handleDeleteEvent(eventId);
+            });
+        });
+    }
+
+    function populateEventFilterDropdown(events) {
+        if (!eventFilterSelect) return;
+        eventFilterSelect.innerHTML = '<option value="">Select an Event</option>';
+        if (!events) return;
+        events.forEach(event => {
+            const option = document.createElement('option');
+            option.value = event.id;
+            option.textContent = event.name;
+            eventFilterSelect.appendChild(option);
+        });
+    }
+
+    function displayEventRecords(records) {
+        if (!eventFilterResults) return;
+        eventFilterResults.innerHTML = '';
+        if (!records || records.length === 0) {
+            eventFilterResults.innerHTML = '<p class="text-gray-600">No records found for this event.</p>';
+            return;
+        }
+        records.forEach(record => {
             const card = document.createElement('div');
             card.className = 'search-card-detailed';
-
-            // Function to safely display data or show 'N/A'
             const safeText = (text) => text || '<span class="text-gray-400">N/A</span>';
-
             card.innerHTML = `
                 <div class="search-card-header">
                     <h3>${safeText(record.naam)}</h3>
@@ -355,20 +427,85 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="search-card-details-grid">
                         <div class="detail-item"><span class="label">Voter No:</span> ${safeText(record.voter_no)}</div>
                         <div class="detail-item"><span class="label">Father's Name:</span> ${safeText(record.pitar_naam)}</div>
-                        <div class="detail-item"><span class="label">Mother's Name:</span> ${safeText(record.matar_naam)}</div>
-                        <div class="detail-item"><span class="label">Date of Birth:</span> ${safeText(record.jonmo_tarikh)}</div>
-                        <div class="detail-item"><span class="label">Profession:</span> ${safeText(record.pesha)}</div>
                         <div class="detail-item"><span class="label">Address:</span> ${safeText(record.thikana)}</div>
-                        <div class="detail-item"><span class="label">Phone:</span> ${safeText(record.phone_number)}</div>
-                        <div class="detail-item"><span class="label">Gender:</span> ${safeText(record.gender)}</div>
-                        <div class="detail-item"><span class="label">Age:</span> ${safeText(record.age)}</div>
-                        <div class="detail-item"><span class="label">Relationship:</span> ${safeText(record.relationship_status)}</div>
                         <div class="detail-item"><span class="label">Batch:</span> ${safeText(record.batch_name)}</div>
-                         <div class="detail-item"><span class="label">File:</span> ${safeText(record.file_name)}</div>
+                        <div class="detail-item"><span class="label">Assigned Events:</span> ${safeText(record.event_names.join(', '))}</div>
+                    </div>
+                </div>
+            `;
+            eventFilterResults.appendChild(card);
+        });
+    }
+    
+    function navigateTo(pageName) { 
+        if (!pages[pageName]) return; 
+        Object.values(pages).forEach(page => page && page.classList.add('hidden')); 
+        Object.values(navLinks).forEach(link => link && link.classList.remove('active')); 
+        pages[pageName].classList.remove('hidden'); 
+        navLinks[pageName].classList.add('active'); 
+        if (pageName === 'events') initializeEventsPage();
+        if (pageName === 'add') populateBatchDropdown(); 
+        if (pageName === 'alldata') initializeAllDataPage(); 
+        if (pageName === 'relationships') initializeRelationshipsPage(); 
+        if (pageName === 'analysis') initializeAnalysisPage(); 
+        if (pageName === 'age') initializeAgeManagementPage(); 
+        if (pageName === 'familytree') initializeFamilyTreePage(); 
+        if (pageName === 'callhistory') initializeCallHistoryPage(); 
+    }
+    function displayPaginationControls(container, prevUrl, nextUrl, callback) { if (!container) return; container.innerHTML = ''; const prevButton = document.createElement('button'); prevButton.textContent = 'Previous'; prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; prevButton.disabled = !prevUrl; prevButton.addEventListener('click', () => callback(prevUrl)); const nextButton = document.createElement('button'); nextButton.textContent = 'Next'; nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; nextButton.disabled = !nextUrl; nextButton.addEventListener('click', () => callback(nextUrl)); container.appendChild(prevButton); container.appendChild(nextButton); }
+    
+    function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50';
+    row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap">${record.naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.voter_no || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.pitar_naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.thikana || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.relationship_status || ''}</td> <td class="px-6 py-4 whitespace-nowrap"> <button data-record-id="${record.id}" class="edit-btn text-indigo-600 hover:text-indigo-900">Edit</button> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
+
+    function displayRelationshipList(status, url = null) { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; relPaginationContainer.innerHTML = ''; const params = { relationship_status: status }; searchRecords(url || params).then(data => { if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } const listContainer = document.createElement('div'); listContainer.className = 'space-y-4'; data.results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; listContainer.appendChild(card); }); relContentContainer.innerHTML = ''; relContentContainer.appendChild(listContainer); displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }); }
+    async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
+    
+    // --- UPDATED to render new interactive card ---
+    function displaySearchResults(results) {
+        if (!searchResultsContainer) return;
+        searchResultsContainer.innerHTML = '';
+        if (!results || results.length === 0) {
+            searchResultsContainer.innerHTML = '<p class="text-gray-600">No results found.</p>';
+            return;
+        }
+
+        results.forEach(record => {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-lg shadow-md flex space-x-4 items-start';
+            const safeText = (text) => text || '<span class="text-gray-400">N/A</span>';
+            card.innerHTML = `
+                <img src="${record.photo_link}" alt="Voter Photo" class="w-24 h-24 rounded-md object-cover" onerror="this.onerror=null;this.src='https://placehold.co/100x100/EEE/31343C?text=No+Image';">
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-lg font-bold text-gray-800">${safeText(record.naam)}</h3>
+                        <button class="edit-btn text-blue-500 hover:text-blue-700" data-record-id="${record.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-500">Voter No: ${safeText(record.voter_no)}</p>
+                    <div class="mt-2 text-sm space-y-1 text-gray-600">
+                        <p><strong>Father's Name:</strong> ${safeText(record.pitar_naam)}</p>
+                        <p><strong>Mother's Name:</strong> ${safeText(record.matar_naam)}</p>
+                        <p><strong>Address:</strong> ${safeText(record.thikana)}</p>
+                        <p><strong>Gender:</strong> ${safeText(record.gender)}</p>
+                        <p><strong>Relationship:</strong> ${safeText(record.relationship_status)}</p>
+                        <p><strong>Batch:</strong> ${safeText(record.batch_name)}</p>
+                        <p><strong>File:</strong> ${safeText(record.file_name)}</p>
                     </div>
                 </div>
             `;
             searchResultsContainer.appendChild(card);
+        });
+
+        // Add event listeners to the new edit buttons
+        searchResultsContainer.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const recordId = e.currentTarget.dataset.recordId;
+                openEditModal(recordId);
+            });
         });
     }
     
@@ -385,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeCallHistoryPage() { if (callHistorySearchInput) callHistorySearchInput.value = ''; if (callHistorySearchResults) callHistorySearchResults.innerHTML = ''; if (callHistoryManagementSection) callHistoryManagementSection.classList.add('hidden'); if(addCallLogForm) addCallLogForm.reset(); if(callLogStatus) callLogStatus.textContent = ''; selectedPersonForCallHistory = null; }
 
 
-    // --- App Initialization & Utilities ---
     function debounce(func, delay) { let timeout; return function(...args) { const context = this; clearTimeout(timeout); timeout = setTimeout(() => func.apply(context, args), delay); }; }
     function showLogin() { if (loginScreen) loginScreen.classList.remove('hidden'); if (appContainer) appContainer.classList.add('hidden'); }
     function showApp() { if (loginScreen) loginScreen.classList.add('hidden'); if (appContainer) appContainer.classList.remove('hidden'); navigateTo('dashboard'); updateDashboardStats(); }

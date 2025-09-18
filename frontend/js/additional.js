@@ -16,9 +16,10 @@ if (filterByEventButton) filterByEventButton.addEventListener('click', () => han
 
 async function initializeEventsPage() {
     try {
-        const events = await getEvents();
-        populateEventList(events);
-        populateEventFilterDropdown(events);
+        const eventsResponse = await getEvents();
+        // --- FIX: Access the .results property from the paginated response ---
+        populateEventList(eventsResponse.results);
+        populateEventFilterDropdown(eventsResponse.results);
     } catch (error) {
         if(existingEventsList) existingEventsList.innerHTML = `<p class="text-red-500">${error.message}</p>`;
         if(eventFilterSelect) eventFilterSelect.innerHTML = `<option>Error loading events</option>`;
@@ -84,7 +85,8 @@ async function handleFilterByEvent(url = null) {
 function populateEventList(events) {
     if (!existingEventsList) return;
     existingEventsList.innerHTML = '';
-    if (events.length === 0) {
+    // --- FIX: Check if the 'events' array is valid ---
+    if (!events || events.length === 0) {
         existingEventsList.innerHTML = '<p class="text-gray-500">No events created yet.</p>';
         return;
     }
@@ -111,6 +113,8 @@ function populateEventList(events) {
 function populateEventFilterDropdown(events) {
     if (!eventFilterSelect) return;
     eventFilterSelect.innerHTML = '<option value="">Select an Event</option>';
+    // --- FIX: Check if the 'events' array is valid ---
+    if (!events) return;
     events.forEach(event => {
         const option = document.createElement('option');
         option.value = event.id;
@@ -150,3 +154,4 @@ function displayEventRecords(records) {
         eventFilterResults.appendChild(card);
     });
 }
+
