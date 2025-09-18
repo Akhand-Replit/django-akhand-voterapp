@@ -3,15 +3,16 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, 
     RelationshipStatsView, AnalysisStatsView, RecalculateAgesView,
-    FamilyRelationshipViewSet, CallHistoryViewSet
+    FamilyRelationshipViewSet, CallHistoryViewSet, EventViewSet
 )
 
 router = DefaultRouter()
 router.register(r'batches', BatchViewSet, basename='batch')
 router.register(r'records', RecordViewSet, basename='record')
 router.register(r'family-relationships', FamilyRelationshipViewSet, basename='familyrelationship')
-# --- NEW ROUTE ---
 router.register(r'call-history', CallHistoryViewSet, basename='callhistory')
+# --- NEW ROUTE FOR EVENTS ---
+router.register(r'events', EventViewSet, basename='event')
 
 
 urlpatterns = [
@@ -22,4 +23,3 @@ urlpatterns = [
     path('recalculate-ages/', RecalculateAgesView.as_view(), name='recalculate-ages'),
     path('', include(router.urls)),
 ]
-

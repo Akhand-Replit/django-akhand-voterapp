@@ -146,6 +146,63 @@ async function getAnalysisStats() {
     return response.json();
 }
 
+
+// --- NEW EVENT API FUNCTIONS ---
+
+async function getEvents() {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    const response = await fetch(`${API_BASE_URL}/api/events/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch events.');
+    return response.json();
+}
+
+async function addEvent(eventName) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    const response = await fetch(`${API_BASE_URL}/api/events/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: eventName }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.name[0] || 'Failed to add event.');
+    }
+    return response.json();
+}
+
+async function deleteEvent(eventId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (response.status !== 204) throw new Error('Failed to delete event.');
+}
+
+async function getRecordsForEvent(eventId, url = null) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    
+    const targetUrl = url || `${API_BASE_URL}/api/events/${eventId}/records/`;
+
+    const response = await fetch(targetUrl, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch records for the event.');
+    return response.json();
+}
+// --- (The rest of your existing api.js file) ---
+
+
+
 // --- NEW FUNCTION for Age Management ---
 async function recalculateAllAges() {
     const token = localStorage.getItem('authToken');

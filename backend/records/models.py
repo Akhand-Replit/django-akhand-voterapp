@@ -7,8 +7,18 @@ class Batch(models.Model):
     def __str__(self):
         return self.name
 
+# --- NEW EVENT MODEL ---
+class Event(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
 class Record(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, db_index=True)
+    # --- ADDED ManyToManyField FOR EVENTS ---
+    events = models.ManyToManyField(Event, blank=True, related_name='records')
     file_name = models.CharField(max_length=255)
     kromik_no = models.CharField("ক্রমিক নং", max_length=50)
     naam = models.TextField("নাম")
@@ -49,7 +59,6 @@ class FamilyRelationship(models.Model):
     def __str__(self):
         return f"{self.relative.naam} is the {self.relationship_type} of {self.person.naam}"
 
-# --- NEW MODEL FOR CALL HISTORY ---
 class CallHistory(models.Model):
     """
     Stores a log of calls made to a specific voter record.
@@ -60,8 +69,7 @@ class CallHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-call_date', '-created_at'] # Show the most recent calls first
+        ordering = ['-call_date', '-created_at'] 
 
     def __str__(self):
         return f"Call to {self.record.naam} on {self.call_date}"
-

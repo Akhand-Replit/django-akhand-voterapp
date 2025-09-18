@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         add: document.getElementById('nav-add'),
         upload: document.getElementById('nav-upload'),
         alldata: document.getElementById('nav-alldata'),
+        events: document.getElementById('nav-events'), // --- ADDED ---
         relationships: document.getElementById('nav-relationships'),
         analysis: document.getElementById('nav-analysis'),
         age: document.getElementById('nav-age'),
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         add: document.getElementById('add-page'),
         upload: document.getElementById('upload-page'),
         alldata: document.getElementById('alldata-page'),
+        events: document.getElementById('events-page'), // --- ADDED ---
         relationships: document.getElementById('relationships-page'),
         analysis: document.getElementById('analysis-page'),
         age: document.getElementById('age-page'),
@@ -299,7 +301,26 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleAddCallLog(event) { event.preventDefault(); const callDate = document.getElementById('call-date').value; const summary = document.getElementById('call-summary').value.trim(); if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } callLogStatus.textContent = 'Saving...'; try { await addCallLog(selectedPersonForCallHistory.id, callDate, summary); callLogStatus.textContent = 'Log saved successfully!'; addCallLogForm.reset(); loadCallHistory(selectedPersonForCallHistory.id); } catch (error) { callLogStatus.textContent = `Error: ${error.message}`; } }
 
     // --- UI Update Functions ---
-    function navigateTo(pageName) { if (!pages[pageName]) return; Object.values(pages).forEach(page => page && page.classList.add('hidden')); Object.values(navLinks).forEach(link => link && link.classList.remove('active')); pages[pageName].classList.remove('hidden'); navLinks[pageName].classList.add('active'); if (pageName === 'add') populateBatchDropdown(); if (pageName === 'alldata') initializeAllDataPage(); if (pageName === 'relationships') initializeRelationshipsPage(); if (pageName === 'analysis') initializeAnalysisPage(); if (pageName === 'age') initializeAgeManagementPage(); if (pageName === 'familytree') initializeFamilyTreePage(); if (pageName === 'callhistory') initializeCallHistoryPage(); }
+    // function navigateTo(pageName) { if (!pages[pageName]) return; Object.values(pages).forEach(page => page && page.classList.add('hidden')); Object.values(navLinks).forEach(link => link && link.classList.remove('active')); pages[pageName].classList.remove('hidden'); navLinks[pageName].classList.add('active'); if (pageName === 'add') populateBatchDropdown(); if (pageName === 'alldata') initializeAllDataPage(); if (pageName === 'relationships') initializeRelationshipsPage(); if (pageName === 'analysis') initializeAnalysisPage(); if (pageName === 'age') initializeAgeManagementPage(); if (pageName === 'familytree') initializeFamilyTreePage(); if (pageName === 'callhistory') initializeCallHistoryPage(); }
+        function navigateTo(pageName) {
+        if (!pages[pageName]) return;
+        Object.values(pages).forEach(page => page && page.classList.add('hidden'));
+        Object.values(navLinks).forEach(link => link && link.classList.remove('active'));
+        pages[pageName].classList.remove('hidden');
+        navLinks[pageName].classList.add('active');
+        
+        // --- ADDED INITIALIZER CALL ---
+        if (pageName === 'events') initializeEventsPage();
+
+        if (pageName === 'add') populateBatchDropdown();
+        if (pageName === 'alldata') initializeAllDataPage();
+        if (pageName === 'relationships') initializeRelationshipsPage();
+        if (pageName === 'analysis') initializeAnalysisPage();
+        if (pageName === 'age') initializeAgeManagementPage();
+        if (pageName === 'familytree') initializeFamilyTreePage();
+        if (pageName === 'callhistory') initializeCallHistoryPage();
+    }
+    
     function displayPaginationControls(container, prevUrl, nextUrl, callback) { if (!container) return; container.innerHTML = ''; const prevButton = document.createElement('button'); prevButton.textContent = 'Previous'; prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; prevButton.disabled = !prevUrl; prevButton.addEventListener('click', () => callback(prevUrl)); const nextButton = document.createElement('button'); nextButton.textContent = 'Next'; nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; nextButton.disabled = !nextUrl; nextButton.addEventListener('click', () => callback(nextUrl)); container.appendChild(prevButton); container.appendChild(nextButton); }
     
     function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50'; // Add cursor pointer for better UX

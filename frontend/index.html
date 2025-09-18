@@ -63,6 +63,8 @@
                         <li><a href="#" id="nav-add" class="nav-link">Add Record</a></li>
                         <li><a href="#" id="nav-upload" class="nav-link">Upload Data</a></li>
                         <li><a href="#" id="nav-alldata" class="nav-link">All Data (Bulk Edit)</a></li>
+                        <!-- NEW NAVIGATION LINK -->
+                        <li><a href="#" id="nav-events" class="nav-link">Event Management</a></li>
                         <li><a href="#" id="nav-relationships" class="nav-link">Relationships</a></li>
                         <li><a href="#" id="nav-analysis" class="nav-link">Analysis</a></li>
                         <li><a href="#" id="nav-age" class="nav-link">Age Management</a></li>
@@ -321,6 +323,51 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- NEW EVENT MANAGEMENT PAGE -->
+                <section id="events-page" class="hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
+
+                    <!-- Part 1: Add and View Events -->
+                    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Add & Manage Events</h3>
+                        
+                        <!-- Add Event Form -->
+                        <form id="add-event-form" class="mb-6 flex space-x-2">
+                            <input type="text" id="new-event-name" placeholder="New Event Name" class="flex-grow px-4 py-2 border rounded-lg" required>
+                            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Add Event</button>
+                        </form>
+                        <p id="add-event-status" class="text-sm"></p>
+
+                        <!-- Existing Events List -->
+                        <h4 class="text-lg font-semibold text-gray-700 mb-2">Existing Events</h4>
+                        <div id="existing-events-list" class="space-y-2">
+                            <!-- Events will be populated here by JavaScript -->
+                            <p class="text-gray-500">Loading events...</p>
+                        </div>
+                    </div>
+
+                    <!-- Part 2: Filter Records by Event -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Filter Records by Event</h3>
+                        
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+                            <div>
+                                <label for="event-filter-select" class="block text-sm font-medium text-gray-700">Select an Event</label>
+                                <select id="event-filter-select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                    <option>Select an event to filter</option>
+                                </select>
+                            </div>
+                             <button id="filter-by-event-button" class="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition mt-5">Filter Records</button>
+                        </div>
+
+                        <div id="event-filter-results" class="mt-6 space-y-4">
+                            <!-- Filtered records will be displayed here -->
+                        </div>
+                         <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
+                    </div>
+                </section>
+
             </main>
         </div>
 
@@ -443,6 +490,8 @@
 
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
+        <!-- NEW SCRIPT FILE -->
+    <script src="js/additional.js"></script>
 </body>
 </html>
 
