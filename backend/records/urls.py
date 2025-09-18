@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, 
     RelationshipStatsView, AnalysisStatsView, RecalculateAgesView,
-    FamilyRelationshipViewSet, CallHistoryViewSet, EventViewSet
+    FamilyRelationshipViewSet, CallHistoryViewSet, EventViewSet,
+    AllRecordsView
 )
 
 router = DefaultRouter()
@@ -21,5 +22,6 @@ urlpatterns = [
     path('relationship-stats/', RelationshipStatsView.as_view(), name='relationship-stats'),
     path('analysis-stats/', AnalysisStatsView.as_view(), name='analysis-stats'),
     path('recalculate-ages/', RecalculateAgesView.as_view(), name='recalculate-ages'),
+    path('all-records/', AllRecordsView.as_view(), name='all-records'),
     path('', include(router.urls)),
 ]

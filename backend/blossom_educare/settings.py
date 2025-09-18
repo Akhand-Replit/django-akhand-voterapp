@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-jy4=9zww0@ybx^xy(+fvx@rdyth!ean7w*_c$(bip*(2fqh=3e'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-jy4=9zww0@ybx^xy(+fvx@rdyth!ean7w*_c$(bip*(2fqh=3e')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -60,7 +61,7 @@ ROOT_URLCONF = 'blossom_educare.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'frontend')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -86,6 +87,18 @@ DATABASES = {
         'PASSWORD': 'AkhandFoundation_VoterData',  # Replace with your PostgreSQL password
         'HOST': '69.62.124.103',             # Or your DB host's IP address
         'PORT': '5450',                  # Default PostgreSQL port
+    }
+}
+
+# Caching Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        # Replace with your actual Redis credentials and host
+        "LOCATION": "redis://default:rSTgDqiD93Od0eRyOtuitCmGdLOhsvPB9HdbABHdFT7UXFD922KZgOZ1gvFtFV3n@69.62.124.103:8767/0",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -125,6 +138,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'frontend'),
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

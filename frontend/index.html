@@ -469,6 +469,27 @@
         </div>
     </div>
 
+        <!-- Mode Selection Modal -->
+    <div id="mode-selection-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm mx-4 text-center">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Choose Data Mode</h2>
+            <p class="text-gray-600 mb-6">Select how you want to interact with the data.</p>
+            <div id="mode-loading-status" class="hidden text-blue-600 mb-4">
+                <!-- Loading message will go here -->
+            </div>
+            <div class="space-y-4">
+                <button id="import-mode-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
+                    Import Mode
+                    <span class="block text-xs font-normal opacity-75">Load all data now for fastest search</span>
+                </button>
+                <button id="direct-mode-btn" class="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 transition duration-200 font-semibold">
+                    Direct Mode
+                    <span class="block text-xs font-normal opacity-75">Connect directly to the database</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>

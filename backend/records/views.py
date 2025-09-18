@@ -7,6 +7,8 @@ from django.db import transaction, models
 from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
+from django.core.cache import cache
+
 
 from .models import Batch, Record, FamilyRelationship , CallHistory, Event
 from .serializers import (
@@ -202,3 +204,30 @@ class CallHistoryViewSet(viewsets.ModelViewSet):
         if record_id:
             return CallHistory.objects.filter(record_id=record_id)
         return CallHistory.objects.none()
+
+class AllRecordsView(APIView):
+    """
+    Handles fetching and caching of the entire dataset for "Import Mode".
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, format=None):
+        cache_key = 'all_voter_data'
+        
+        # Try to get the data from the cache first
+        cached_data = cache.get(cache_key)
+        
+        if cached_data:
+            print("Serving all records from CACHE.")
+            return Response(cached_data)
+            
+        # If not in cache, fetch from DB, serialize, cache it, and return it
+        print("No cache found. Fetching all records from DATABASE.")
+        queryset = Record.objects.select_related('batch').all()
+        serializer = RecordSerializer(queryset, many=True)
+        
+        # Store in cache forever (or until invalidated)
+        cache.set(cache_key, serializer.data, timeout=None)
+        
+        print(f"Cached {len(serializer.data)} records.")
+        return Response(serializer.data)

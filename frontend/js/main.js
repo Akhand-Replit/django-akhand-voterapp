@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Global State ---
+    let currentDataMode = 'direct'; // 'direct' or 'import'
+    let allImportedRecords = [];
+    let originalRecords = []; // Used for modals, holds the currently displayed page of records
+    let currentAllDataParams = {};
+
     // --- Global Element References ---
     const loginScreen = document.getElementById('login-screen');
     const appContainer = document.getElementById('app-container');
@@ -49,9 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const allDataTableContainer = document.getElementById('alldata-table-container');
     const allDataStatus = document.getElementById('alldata-status');
     const allDataPaginationContainer = document.getElementById('alldata-pagination');
-    let originalRecords = [];
-    let currentAllDataParams = {};
-
+    
     const editRecordModal = document.getElementById('edit-record-modal');
     const editRecordForm = document.getElementById('edit-record-form');
     const modalCloseButton = document.getElementById('modal-close-button');
@@ -95,6 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterByEventButton = document.getElementById('filter-by-event-button');
     const eventFilterResults = document.getElementById('event-filter-results');
     const eventFilterPagination = document.getElementById('event-filter-pagination');
+    
+    // New Modal Elements
+    const modeSelectionModal = document.getElementById('mode-selection-modal');
+    const importModeBtn = document.getElementById('import-mode-btn');
+    const directModeBtn = document.getElementById('direct-mode-btn');
+    const modeLoadingStatus = document.getElementById('mode-loading-status');
 
 
     // --- Event Listeners ---
@@ -108,6 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
     Object.values(navLinks).forEach(link => {
         if (link) link.addEventListener('click', handleNavigation);
     });
+
+    // New Mode Selection Listeners
+    if (importModeBtn) importModeBtn.addEventListener('click', handleImportMode);
+    if (directModeBtn) directModeBtn.addEventListener('click', handleDirectMode);
+
     if (searchForm) searchForm.addEventListener('submit', (e) => handleSearch(e));
     if (addRecordForm) addRecordForm.addEventListener('submit', handleAddRecord);
     if (uploadDataForm) uploadDataForm.addEventListener('submit', handleUploadData);
@@ -148,7 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Handlers ---
     async function handleLogin(e) { e.preventDefault(); loginError.textContent = ''; const username = document.getElementById('username').value; const password = document.getElementById('password').value; try { const data = await loginUser(username, password); localStorage.setItem('authToken', data.token); showApp(); } catch (error) { loginError.textContent = error.message; } }
-    function handleLogout() { localStorage.removeItem('authToken'); showLogin(); }
+    
+    function handleLogout() { 
+        localStorage.removeItem('authToken'); 
+        // Reset state on logout
+        currentDataMode = 'direct';
+        allImportedRecords = [];
+        showLogin(); 
+    }
     
     function handleNavigation(e) {
         e.preventDefault();
@@ -161,36 +183,106 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function handleImportMode() {
+        modeLoadingStatus.innerHTML = 'Loading all records from database... <br> This may take a moment.';
+        modeLoadingStatus.classList.remove('hidden');
+        importModeBtn.disabled = true;
+        directModeBtn.disabled = true;
 
-    async function handleSearch(e, url = null) { 
+        try {
+            const data = await getAllRecords();
+            allImportedRecords = data;
+            currentDataMode = 'import';
+            modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records loaded successfully!</p>`;
+            setTimeout(() => {
+                modeSelectionModal.classList.add('hidden');
+                navigateTo('dashboard');
+                updateDashboardStats();
+            }, 1500);
+
+        } catch (error) {
+            modeLoadingStatus.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+        } finally {
+            importModeBtn.disabled = false;
+            directModeBtn.disabled = false;
+        }
+    }
+
+    function handleDirectMode() {
+        currentDataMode = 'direct';
+        modeSelectionModal.classList.add('hidden');
+        navigateTo('dashboard');
+        updateDashboardStats();
+    }
+
+    async function handleSearch(e, pageOrUrl = 1) { 
         if (e) e.preventDefault(); 
         if (!searchResultsContainer) return; 
         searchResultsContainer.innerHTML = '<p class="text-gray-500">Searching...</p>'; 
-        let searchParams; 
-        if (url) { 
-            searchParams = url; 
-        } else { 
-            const params = { 
-                naam__icontains: document.getElementById('search-name').value, 
-                voter_no: document.getElementById('search-voter-no').value, 
-                pitar_naam__icontains: document.getElementById('search-father-name').value, 
-                thikana__icontains: document.getElementById('search-address').value, 
-                matar_naam__icontains: document.getElementById('search-mother-name').value,
-                kromik_no: document.getElementById('search-kromik-no').value,
-                pesha__icontains: document.getElementById('search-profession').value,
-                phone_number__icontains: document.getElementById('search-phone').value,
-            }; 
-            searchParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v.trim() !== '')); 
-        } 
-        try { 
-            const data = await searchRecords(searchParams);
-            originalRecords = data.results; // Store search results for the modal
-            displaySearchResults(data.results); 
-            displayPaginationControls(searchPaginationContainer, data.previous, data.next, (nextUrl) => handleSearch(null, nextUrl)); 
-        } catch (error) { 
-            searchResultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; 
-        } 
+        
+        const params = { 
+            naam: document.getElementById('search-name').value.toLowerCase(), 
+            voter_no: document.getElementById('search-voter-no').value, 
+            pitar_naam: document.getElementById('search-father-name').value.toLowerCase(), 
+            thikana: document.getElementById('search-address').value.toLowerCase(), 
+            matar_naam: document.getElementById('search-mother-name').value.toLowerCase(),
+            kromik_no: document.getElementById('search-kromik-no').value,
+            pesha: document.getElementById('search-profession').value.toLowerCase(),
+            phone_number: document.getElementById('search-phone').value,
+        };
+
+        if (currentDataMode === 'direct') {
+            let searchParams;
+            if (typeof pageOrUrl === 'string') {
+                searchParams = pageOrUrl; // It's a full URL for next/prev
+            } else {
+                 const apiParams = {
+                    naam__icontains: params.naam,
+                    voter_no: params.voter_no,
+                    pitar_naam__icontains: params.pitar_naam,
+                    thikana__icontains: params.thikana,
+                    matar_naam__icontains: params.matar_naam,
+                    kromik_no: params.kromik_no,
+                    pesha__icontains: params.pesha,
+                    phone_number__icontains: params.phone_number,
+                 };
+                searchParams = Object.fromEntries(Object.entries(apiParams).filter(([_, v]) => v && v.trim() !== ''));
+            }
+            try { 
+                const data = await searchRecords(searchParams);
+                originalRecords = data.results; 
+                displaySearchResults(data.results); 
+                displayPaginationControls(searchPaginationContainer, data.previous, data.next, (nextUrl) => handleSearch(null, nextUrl)); 
+            } catch (error) { 
+                searchResultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; 
+            } 
+        } else { // 'import' mode: client-side filtering
+            
+            const filtered = allImportedRecords.filter(r => {
+                const nameMatch = !params.naam || (r.naam && r.naam.toLowerCase().includes(params.naam));
+                const voterNoMatch = !params.voter_no || r.voter_no === params.voter_no;
+                const pitarNaamMatch = !params.pitar_naam || (r.pitar_naam && r.pitar_naam.toLowerCase().includes(params.pitar_naam));
+                const thikanaMatch = !params.thikana || (r.thikana && r.thikana.toLowerCase().includes(params.thikana));
+                const matarNaamMatch = !params.matar_naam || (r.matar_naam && r.matar_naam.toLowerCase().includes(params.matar_naam));
+                const kromikNoMatch = !params.kromik_no || r.kromik_no === params.kromik_no;
+                const peshaMatch = !params.pesha || (r.pesha && r.pesha.toLowerCase().includes(params.pesha));
+                const phoneMatch = !params.phone_number || (r.phone_number && r.phone_number.includes(params.phone_number));
+                return nameMatch && voterNoMatch && pitarNaamMatch && thikanaMatch && matarNaamMatch && kromikNoMatch && peshaMatch && phoneMatch;
+            });
+            
+            // Client-side pagination
+            const page = typeof pageOrUrl === 'number' ? pageOrUrl : 1;
+            const pageSize = 50; 
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const paginatedResults = filtered.slice(start, end);
+
+            originalRecords = paginatedResults;
+            displaySearchResults(paginatedResults);
+            displayClientSidePagination(searchPaginationContainer, page, filtered.length, pageSize, (nextPage) => handleSearch(null, nextPage));
+        }
     }
+
     async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
     async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleAllDataBatchSelect() { const batchId = allDataBatchSelect.value; if (!allDataFileSelect || !allDataTableContainer) return; allDataFileSelect.innerHTML = '<option value="">Loading files...</option>'; allDataTableContainer.innerHTML = ''; originalRecords = []; if (!batchId) { allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; return; } try { const files = await getBatchFiles(batchId); allDataFileSelect.innerHTML = '<option value="all">All Files</option>'; files.forEach(file => { const option = document.createElement('option'); option.value = file; option.textContent = file; allDataFileSelect.appendChild(option); }); handleAllDataFileSelect(); } catch (error) { allDataFileSelect.innerHTML = '<option value="">Error loading files</option>'; console.error(error); } }
@@ -223,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('edit-political-status').value = record.political_status || '';
         document.getElementById('edit-relationship-status').value = record.relationship_status || 'Regular';
         
-        // --- NEW: Populate events in the modal ---
         const eventsContainer = document.getElementById('edit-events-checkboxes');
         eventsContainer.innerHTML = 'Loading events...';
         try {
@@ -271,7 +362,6 @@ document.addEventListener('DOMContentLoaded', () => {
             relationship_status: document.getElementById('edit-relationship-status').value,
         };
 
-        // --- NEW: Get selected event IDs from the modal ---
         const selectedEventIds = Array.from(document.querySelectorAll('#edit-events-checkboxes input:checked')).map(cb => cb.value);
 
         const statusContainer = document.querySelector('.active')?.id === 'alldata-page' ? allDataStatus : searchResultsContainer;
@@ -284,17 +374,15 @@ document.addEventListener('DOMContentLoaded', () => {
             statusContainer.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
             editRecordModal.classList.add('hidden');
             
-            // Refresh the current view
             if (document.querySelector('.active')?.id === 'alldata-page') {
                  handleAllDataFileSelect(currentAllDataParams);
             } else {
-                 handleSearch(null); // Re-run the last search
+                 handleSearch(null);
             }
         } catch (error) {
             statusContainer.innerHTML = `<p class="text-red-500">Error saving changes: ${error.message}</p>`;
         }
     }
-
 
     function handleRelTabClick(clickedTab) { if (!relTabs) return; relTabs.forEach(tab => tab.classList.remove('active')); clickedTab.classList.add('active'); const status = clickedTab.dataset.status; if (status === 'Stats') { displayRelationshipStats(); } else { displayRelationshipList(status); } }
     async function handleRecalculateAges() { if (!ageRecalculationStatus) return; ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; try { const result = await recalculateAllAges(); ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; initializeAgeManagementPage(); } catch (error) { ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
@@ -452,15 +540,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pageName === 'familytree') initializeFamilyTreePage(); 
         if (pageName === 'callhistory') initializeCallHistoryPage(); 
     }
+
     function displayPaginationControls(container, prevUrl, nextUrl, callback) { if (!container) return; container.innerHTML = ''; const prevButton = document.createElement('button'); prevButton.textContent = 'Previous'; prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; prevButton.disabled = !prevUrl; prevButton.addEventListener('click', () => callback(prevUrl)); const nextButton = document.createElement('button'); nextButton.textContent = 'Next'; nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'; nextButton.disabled = !nextUrl; nextButton.addEventListener('click', () => callback(nextUrl)); container.appendChild(prevButton); container.appendChild(nextButton); }
     
+    function displayClientSidePagination(container, currentPage, totalItems, pageSize, callback) {
+        if (!container) return;
+        container.innerHTML = '';
+        const pageCount = Math.ceil(totalItems / pageSize);
+
+        if (pageCount <= 1) return;
+
+        const prevButton = document.createElement('button');
+        prevButton.textContent = 'Previous';
+        prevButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed';
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener('click', () => callback(currentPage - 1));
+        
+        const pageInfo = document.createElement('span');
+        pageInfo.className = 'text-sm text-gray-700';
+        pageInfo.textContent = `Page ${currentPage} of ${pageCount}`;
+
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Next';
+        nextButton.className = 'px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed';
+        nextButton.disabled = currentPage === pageCount;
+        nextButton.addEventListener('click', () => callback(currentPage + 1));
+        
+        container.appendChild(prevButton);
+        container.appendChild(pageInfo);
+        container.appendChild(nextButton);
+    }
+
     function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50';
     row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap">${record.naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.voter_no || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.pitar_naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.thikana || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.relationship_status || ''}</td> <td class="px-6 py-4 whitespace-nowrap"> <button data-record-id="${record.id}" class="edit-btn text-indigo-600 hover:text-indigo-900">Edit</button> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
 
     function displayRelationshipList(status, url = null) { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; relPaginationContainer.innerHTML = ''; const params = { relationship_status: status }; searchRecords(url || params).then(data => { if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } const listContainer = document.createElement('div'); listContainer.className = 'space-y-4'; data.results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; listContainer.appendChild(card); }); relContentContainer.innerHTML = ''; relContentContainer.appendChild(listContainer); displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }); }
     async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     
-    // --- UPDATED to render new interactive card ---
     function displaySearchResults(results) {
         if (!searchResultsContainer) return;
         searchResultsContainer.innerHTML = '';
@@ -500,7 +616,6 @@ document.addEventListener('DOMContentLoaded', () => {
             searchResultsContainer.appendChild(card);
         });
 
-        // Add event listeners to the new edit buttons
         searchResultsContainer.querySelectorAll('.edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const recordId = e.currentTarget.dataset.recordId;
@@ -521,10 +636,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeFamilyTreePage() { if (familyMainSearchInput) familyMainSearchInput.value = ''; if (familyMainSearchResults) familyMainSearchResults.innerHTML = ''; if (familyManagementSection) familyManagementSection.classList.add('hidden'); if (familyRelativeSearchInput) familyRelativeSearchInput.value = ''; if (familyRelativeSearchResults) familyRelativeSearchResults.innerHTML = ''; if (familyAddForm) familyAddForm.classList.add('hidden'); selectedPersonId = null; selectedRelativeId = null; }
     function initializeCallHistoryPage() { if (callHistorySearchInput) callHistorySearchInput.value = ''; if (callHistorySearchResults) callHistorySearchResults.innerHTML = ''; if (callHistoryManagementSection) callHistoryManagementSection.classList.add('hidden'); if(addCallLogForm) addCallLogForm.reset(); if(callLogStatus) callLogStatus.textContent = ''; selectedPersonForCallHistory = null; }
 
-
     function debounce(func, delay) { let timeout; return function(...args) { const context = this; clearTimeout(timeout); timeout = setTimeout(() => func.apply(context, args), delay); }; }
-    function showLogin() { if (loginScreen) loginScreen.classList.remove('hidden'); if (appContainer) appContainer.classList.add('hidden'); }
-    function showApp() { if (loginScreen) loginScreen.classList.add('hidden'); if (appContainer) appContainer.classList.remove('hidden'); navigateTo('dashboard'); updateDashboardStats(); }
+    
+    function showLogin() { 
+        if (loginScreen) loginScreen.classList.remove('hidden'); 
+        if (appContainer) appContainer.classList.add('hidden');
+        if (modeSelectionModal) modeSelectionModal.classList.add('hidden'); 
+    }
+
+    function showApp() { 
+        if (loginScreen) loginScreen.classList.add('hidden'); 
+        if (appContainer) appContainer.classList.add('hidden'); // Keep app hidden initially
+        if (modeSelectionModal) modeSelectionModal.classList.remove('hidden'); // Show mode modal
+    }
+
     function init() { if (localStorage.getItem('authToken')) { showApp(); } else { showLogin(); } }
     
     init();
