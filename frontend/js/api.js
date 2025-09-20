@@ -145,26 +145,6 @@ async function assignEventsToRecord(recordId, eventIds) {
     return response.json();
 }
 
-// --- NEW: API FUNCTION TO SYNC ALL LOCAL CHANGES ---
-async function syncData(payload) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/sync-data/`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to sync data.');
-    }
-    return response.json();
-}
-
 
 async function getRelationshipStats() {
     const token = localStorage.getItem('authToken');

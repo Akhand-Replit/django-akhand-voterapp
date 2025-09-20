@@ -15,9 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const mobileMenuButton = document.getElementById('mobile-menu-button');
 
-    // NEW: Add sync nav item
-    const syncNavItem = document.getElementById('sync-nav-item');
-
     const navLinks = {
         dashboard: document.getElementById('nav-dashboard'),
         search: document.getElementById('nav-search'),
@@ -30,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
         age: document.getElementById('nav-age'),
         familytree: document.getElementById('nav-familytree'),
         callhistory: document.getElementById('nav-callhistory'),
-        sync: document.getElementById('nav-sync'), // NEW
     };
 
     const pages = {
@@ -176,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset state on logout
         currentDataMode = 'direct';
         allImportedRecords = [];
-        syncNavItem.classList.add('hidden'); // NEW: Hide sync button
         showLogin(); 
     }
     
@@ -223,8 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             setTimeout(() => {
                 modeSelectionModal.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                syncNavItem.classList.remove('hidden'); // NEW: Show sync button
+                appContainer.classList.remove('hidden'); // <-- FIX: Show the main app
                 navigateTo('dashboard');
                 updateDashboardStats();
                 // Reset for next time
@@ -244,26 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDirectMode() {
         currentDataMode = 'direct';
-        appContainer.classList.remove('hidden');
-        syncNavItem.classList.add('hidden'); // NEW: Hide sync button
+        appContainer.classList.remove('hidden'); // <-- FIX: Show the main app
         modeSelectionModal.classList.add('hidden');
         navigateTo('dashboard');
         updateDashboardStats();
     }
-
-    // NEW: Handler for the Sync Data button
-    async function handleSyncData(e) {
-        if (e) e.preventDefault();
-        if (!confirm('This will discard any local changes and re-download all data from the server. Are you sure?')) {
-            return;
-        }
-        allImportedRecords = [];
-        syncNavItem.classList.add('hidden');
-        modeSelectionModal.classList.remove('hidden');
-        appContainer.classList.add('hidden');
-        await handleImportMode();
-    }
-
 
     async function handleSearch(e, pageOrUrl = 1) { 
         if (e) e.preventDefault(); 
@@ -323,42 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleAddRecord(e) {
-        e.preventDefault();
-        if (!addRecordSuccessMessage) return;
-        addRecordSuccessMessage.textContent = '';
-        const formData = new FormData(addRecordForm);
-        const recordData = Object.fromEntries(formData.entries());
-
-        if (currentDataMode === 'import') {
-            // --- NEW: Handle add in import mode ---
-            const newRecord = {
-                ...recordData,
-                id: `new-${Date.now()}`, // Temporary ID
-                batch_name: addRecordBatchSelect.options[addRecordBatchSelect.selectedIndex].text,
-                event_names: [], // New records have no events initially
-                // Add other fields with default values if necessary
-                photo_link: 'https://placehold.co/100x100/EEE/31343C?text=No+Image',
-                relationship_status: 'Regular',
-            };
-            allImportedRecords.unshift(newRecord); // Add to the top of the list
-            addRecordSuccessMessage.className = 'mt-4 text-yellow-600';
-            addRecordSuccessMessage.textContent = 'Record added locally. Press "Sync Data" in the sidebar to save all changes to the server.';
-            addRecordForm.reset();
-            updateDashboardStats(); // This will now reflect local changes
-        } else {
-            // --- Original direct mode logic ---
-            try {
-                await addRecord(recordData);
-                addRecordSuccessMessage.className = 'mt-4 text-green-600';
-                addRecordSuccessMessage.textContent = 'Record added successfully!';
-                addRecordForm.reset();
-                updateDashboardStats();
-            } catch (error) {
-                alert(error.message);
-            }
-        }
-    }
+    async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
     async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleAllDataBatchSelect() { const batchId = allDataBatchSelect.value; if (!allDataFileSelect || !allDataTableContainer) return; allDataFileSelect.innerHTML = '<option value="">Loading files...</option>'; allDataTableContainer.innerHTML = ''; originalRecords = []; if (!batchId) { allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; return; } try { const files = await getBatchFiles(batchId); allDataFileSelect.innerHTML = '<option value="all">All Files</option>'; files.forEach(file => { const option = document.createElement('option'); option.value = file; option.textContent = file; allDataFileSelect.appendChild(option); }); handleAllDataFileSelect(); } catch (error) { allDataFileSelect.innerHTML = '<option value="">Error loading files</option>'; console.error(error); } }
     
@@ -481,79 +425,37 @@ document.addEventListener('DOMContentLoaded', () => {
             relationship_status: document.getElementById('edit-relationship-status').value,
         };
 
-        const selectedEventIds = Array.from(document.querySelectorAll('#edit-events-checkboxes input:checked')).map(cb => parseInt(cb.value));
+        const selectedEventIds = Array.from(document.querySelectorAll('#edit-events-checkboxes input:checked')).map(cb => cb.value);
+
         const statusContainer = document.querySelector('.active')?.id === 'alldata-page' ? allDataStatus : searchResultsContainer;
+        statusContainer.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
         
-        if (currentDataMode === 'import') {
-            // --- NEW: Handle save in import mode ---
-            const recordIndex = allImportedRecords.findIndex(r => r.id == recordId);
-            if (recordIndex > -1) {
-                
-                const selectedEventCheckboxes = Array.from(document.querySelectorAll('#edit-events-checkboxes input:checked'));
-                const newEventNames = selectedEventCheckboxes.map(cb => {
-                    const label = document.querySelector(`label[for="${cb.id}"]`);
-                    return label ? label.textContent : '';
-                });
+        try {
+            await updateRecord(recordId, updatedData);
+            await assignEventsToRecord(recordId, selectedEventIds);
 
-                allImportedRecords[recordIndex] = {
-                    ...allImportedRecords[recordIndex],
-                    ...updatedData,
-                    event_names: newEventNames,
-                };
-
-                statusContainer.innerHTML = `<p class="text-yellow-600">Record updated locally. Press 'Sync Data' to save changes to the server.</p>`;
-                editRecordModal.classList.add('hidden');
-
-                // Refresh the current view to show the changes
-                const activePageId = document.querySelector('.active')?.id;
-                if (activePageId.includes('alldata')) {
-                    handleAllDataFileSelect();
-                } else if (activePageId.includes('search')) {
-                    handleSearch(null);
-                }
-            } else {
-                statusContainer.innerHTML = `<p class="text-red-500">Error: Could not find record in local data.</p>`;
-            }
-
-        } else {
-            // --- Original direct mode logic ---
-            statusContainer.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
+            statusContainer.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
+            editRecordModal.classList.add('hidden');
             
-            try {
-                await updateRecord(recordId, updatedData);
-                await assignEventsToRecord(recordId, selectedEventIds);
-
-                statusContainer.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
-                editRecordModal.classList.add('hidden');
-
-                if (document.querySelector('.active')?.id === 'alldata-page') {
-                    handleAllDataFileSelect(currentAllDataParams);
-                } else {
-                    handleSearch(null);
-                }
-            } catch (error) {
-                statusContainer.innerHTML = `<p class="text-red-500">Error saving changes: ${error.message}</p>`;
+            // Invalidate local cache if in import mode
+            if (currentDataMode === 'import') {
+                allImportedRecords = []; // Force re-import on next login
+                alert("Data has been modified. Please log out and re-enter Import Mode to see changes.");
             }
+
+            if (document.querySelector('.active')?.id === 'alldata-page') {
+                 handleAllDataFileSelect(currentAllDataParams);
+            } else {
+                 handleSearch(null);
+            }
+        } catch (error) {
+            statusContainer.innerHTML = `<p class="text-red-500">Error saving changes: ${error.message}</p>`;
         }
     }
 
     // --- FIX: This function now respects the data mode ---
     function handleRelTabClick(clickedTab) { if (!relTabs) return; relTabs.forEach(tab => tab.classList.remove('active')); clickedTab.classList.add('active'); const status = clickedTab.dataset.status; if (status === 'Stats') { displayRelationshipStats(); } else { displayRelationshipList(status); } }
-    async function handleRecalculateAges() { 
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode. Please log out and select Direct Mode.");
-            return;
-        }
-        if (!ageRecalculationStatus) return; 
-        ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; 
-        try { 
-            const result = await recalculateAllAges(); 
-            ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; 
-            initializeAgeManagementPage(); 
-        } catch (error) { 
-            ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; 
-        } 
-    }
+    async function handleRecalculateAges() { if (!ageRecalculationStatus) return; ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; try { const result = await recalculateAllAges(); ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; initializeAgeManagementPage(); } catch (error) { ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     
     // --- FIX: This function now respects the data mode ---
     async function handleFamilyTreeSearch(event) { const input = event.target; const query = input.value.trim(); const isMainSearch = input.id === 'family-main-search'; const resultsContainer = isMainSearch ? familyMainSearchResults : familyRelativeSearchResults; if (!query) { resultsContainer.innerHTML = ''; return; } 
@@ -567,30 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function selectMainPerson(person) { selectedPersonId = person.id; familySelectedPersonDetails.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`; familyManagementSection.classList.remove('hidden'); familyMainSearchResults.innerHTML = ''; familyMainSearchInput.value = person.naam; loadFamilyTree(person.id); }
-    function selectRelative(relative) { selectedRelativeId = relative.id; familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`; familyRelativeSearchInput.value = relative.naam; familyAddForm.classList.add('hidden'); }
+    function selectRelative(relative) { selectedRelativeId = relative.id; familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`; familyRelativeSearchInput.value = relative.naam; familyAddForm.classList.remove('hidden'); }
     async function loadFamilyTree(personId, url = null) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">Loading relatives...</p>'; try { const data = await getFamilyTree(personId, url); familyCurrentRelatives.innerHTML = ''; if (data.results.length === 0) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">No relatives added yet.</p>'; } else { data.results.forEach(rel => { const relDiv = document.createElement('div'); relDiv.className = 'flex justify-between items-center p-2 border-b'; relDiv.innerHTML = ` <div> <span class="font-bold">${rel.relationship_type}:</span> <span>${rel.relative.naam} (Voter No: ${rel.relative.voter_no || 'N/A'})</span> </div> <button data-id="${rel.id}" class="remove-relative-btn text-red-500 hover:text-red-700">Remove</button> `; familyCurrentRelatives.appendChild(relDiv); }); document.querySelectorAll('.remove-relative-btn').forEach(btn => { btn.addEventListener('click', handleRemoveRelationship); }); } displayPaginationControls(familyTreePagination, data.previous, data.next, (nextUrl) => loadFamilyTree(personId, nextUrl)); } catch (error) { familyCurrentRelatives.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
-    async function handleAddRelationship() { 
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode.");
-            return;
-        }
-        const relationshipType = relationshipTypeInput.value.trim(); 
-        if (!selectedPersonId || !selectedRelativeId || !relationshipType) { familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.'; return; } familyAddStatus.textContent = 'Adding...'; try { await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType); familyAddStatus.textContent = 'Relationship added successfully!'; familyRelativeSearchInput.value = ''; relationshipTypeInput.value = ''; selectedRelativeId = null; familyRelativeSearchResults.innerHTML = ''; familyAddForm.classList.add('hidden'); loadFamilyTree(selectedPersonId); } catch (error) { familyAddStatus.textContent = `Error: ${error.message}`; } 
-    }
-    async function handleRemoveRelationship(event) { 
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode.");
-            return;
-        }
-        const relationshipId = event.target.dataset.id; 
-        if (!confirm('Are you sure you want to remove this relationship?')) return; 
-        try { 
-            await removeFamilyMember(relationshipId); 
-            loadFamilyTree(selectedPersonId); 
-        } catch (error) { 
-            alert(`Failed to remove relationship: ${error.message}`); 
-        } 
-    }
+    async function handleAddRelationship() { const relationshipType = relationshipTypeInput.value.trim(); if (!selectedPersonId || !selectedRelativeId || !relationshipType) { familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.'; return; } familyAddStatus.textContent = 'Adding...'; try { await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType); familyAddStatus.textContent = 'Relationship added successfully!'; familyRelativeSearchInput.value = ''; relationshipTypeInput.value = ''; selectedRelativeId = null; familyRelativeSearchResults.innerHTML = ''; familyAddForm.classList.add('hidden'); loadFamilyTree(selectedPersonId); } catch (error) { familyAddStatus.textContent = `Error: ${error.message}`; } }
+    async function handleRemoveRelationship(event) { const relationshipId = event.target.dataset.id; if (!confirm('Are you sure you want to remove this relationship?')) return; try { await removeFamilyMember(relationshipId); loadFamilyTree(selectedPersonId); } catch (error) { alert(`Failed to remove relationship: ${error.message}`); } }
     
     // --- FIX: This function now respects the data mode ---
     async function handleCallHistorySearch(event) { const query = event.target.value.trim(); if (!query) { callHistorySearchResults.innerHTML = ''; return; } 
@@ -605,25 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
      }
     function selectPersonForCallHistory(person) { selectedPersonForCallHistory = person; callHistorySelectedPerson.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`; callHistoryManagementSection.classList.remove('hidden'); callHistorySearchResults.innerHTML = ''; callHistorySearchInput.value = person.naam; loadCallHistory(person.id); }
     async function loadCallHistory(recordId, url = null) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">Loading history...</p>'; try { const data = await getCallHistory(recordId, url); callHistoryLogsContainer.innerHTML = ''; if (data.results.length === 0) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">No call history found for this person.</p>'; } else { data.results.forEach(log => { const logDiv = document.createElement('div'); logDiv.className = 'p-3 border rounded-lg bg-gray-50'; logDiv.innerHTML = ` <p class="font-bold text-gray-700">${log.call_date}</p> <p class="text-gray-600 mt-1">${log.summary}</p> `; callHistoryLogsContainer.appendChild(logDiv); }); } displayPaginationControls(callHistoryPagination, data.previous, data.next, (nextUrl) => loadCallHistory(recordId, nextUrl)); } catch (error) { callHistoryLogsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
-    async function handleAddCallLog(event) { 
-        event.preventDefault(); 
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode.");
-            return;
-        }
-        const callDate = document.getElementById('call-date').value; 
-        const summary = document.getElementById('call-summary').value.trim(); 
-        if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } 
-        callLogStatus.textContent = 'Saving...'; 
-        try { 
-            await addCallLog(selectedPersonForCallHistory.id, callDate, summary); 
-            callLogStatus.textContent = 'Log saved successfully!'; 
-            addCallLogForm.reset(); 
-            loadCallHistory(selectedPersonForCallHistory.id); 
-        } catch (error) { 
-            callLogStatus.textContent = `Error: ${error.message}`; 
-        } 
-    }
+    async function handleAddCallLog(event) { event.preventDefault(); const callDate = document.getElementById('call-date').value; const summary = document.getElementById('call-summary').value.trim(); if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } callLogStatus.textContent = 'Saving...'; try { await addCallLog(selectedPersonForCallHistory.id, callDate, summary); callLogStatus.textContent = 'Log saved successfully!'; addCallLogForm.reset(); loadCallHistory(selectedPersonForCallHistory.id); } catch (error) { callLogStatus.textContent = `Error: ${error.message}`; } }
 
     async function initializeEventsPage() {
         try {
@@ -646,14 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         addEventStatus.textContent = 'Adding...';
         addEventStatus.className = 'text-blue-600 text-sm';
-        
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode.");
-            addEventStatus.textContent = '';
-            addEventForm.reset();
-            return;
-        }
-
         try {
             await addEvent(eventName);
             addEventStatus.textContent = 'Event added successfully!';
@@ -667,10 +523,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleDeleteEvent(eventId) {
-        if (currentDataMode === 'import') {
-            alert("This feature is only available in Direct Mode.");
-            return;
-        }
         if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) {
             return;
         }
@@ -767,15 +619,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function navigateTo(pageName) { 
         if (!pages[pageName]) return; 
-        // --- NEW: Handle click on sync button ---
-        if (pageName === 'sync') {
-            handleSyncData();
-            return;
-        }
         Object.values(pages).forEach(page => page && page.classList.add('hidden')); 
-        Object.values(navLinks).forEach(link => {
-            if (link) link.classList.remove('active');
-        }); 
+        Object.values(navLinks).forEach(link => link && link.classList.remove('active')); 
         pages[pageName].classList.remove('hidden'); 
         navLinks[pageName].classList.add('active'); 
         if (pageName === 'events') initializeEventsPage();
@@ -867,16 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    async function displayRelationshipStats() { 
-        if (currentDataMode === 'import') {
-            // Basic stats from local data could be implemented here, but for now, disable it.
-            relContentContainer.innerHTML = '<p>Stats are only available in Direct Mode.</p>';
-            return;
-        }
-        if (!relContentContainer || !relPaginationContainer) return; 
-        relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; 
-        relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } 
-    }
+    async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     
     function displaySearchResults(results) {
         if (!searchResultsContainer) return;
@@ -925,23 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    async function updateDashboardStats() { 
-        if (currentDataMode === 'import') {
-            // --- NEW: Calculate stats from local data ---
-            document.getElementById('total-records').textContent = allImportedRecords.length;
-            document.getElementById('total-batches').textContent = [...new Set(allImportedRecords.map(r => r.batch))].length;
-            document.getElementById('total-friends').textContent = allImportedRecords.filter(r => r.relationship_status === 'Friend').length;
-            document.getElementById('total-enemies').textContent = allImportedRecords.filter(r => r.relationship_status === 'Enemy').length;
-        } else {
-            try { 
-                const stats = await getDashboardStats(); 
-                document.getElementById('total-records').textContent = stats.total_records; 
-                document.getElementById('total-batches').textContent = stats.total_batches; 
-                document.getElementById('total-friends').textContent = stats.friend_count; 
-                document.getElementById('total-enemies').textContent = stats.enemy_count; 
-            } catch (error) { console.error('Failed to update dashboard stats:', error); } 
-        }
-    }
+    async function updateDashboardStats() { try { const stats = await getDashboardStats(); document.getElementById('total-records').textContent = stats.total_records; document.getElementById('total-batches').textContent = stats.total_batches; document.getElementById('total-friends').textContent = stats.friend_count; document.getElementById('total-enemies').textContent = stats.enemy_count; } catch (error) { console.error('Failed to update dashboard stats:', error); } }
     async function populateBatchDropdown() { if (!addRecordBatchSelect) return; try { const batchesData = await getBatches(); const batches = batchesData.results; addRecordBatchSelect.innerHTML = '<option value="">Select a Batch (Required)</option>'; batches.forEach(batch => { const option = document.createElement('option'); option.value = batch.id; option.textContent = batch.name; addRecordBatchSelect.appendChild(option); }); } catch (error) { console.error('Failed to populate batches:', error); } }
     function initializeRelationshipsPage() { if (!relTabs.length) return; handleRelTabClick(document.querySelector('.rel-tab-button[data-status="Friend"]')); }
     async function initializeAllDataPage() { if (!allDataTableContainer || !allDataFileSelect || !allDataStatus || !allDataBatchSelect) return; allDataTableContainer.innerHTML = ''; allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; allDataStatus.innerHTML = ''; originalRecords = []; try { const batchesData = await getBatches(); const batches = batchesData.results; allDataBatchSelect.innerHTML = '<option value="">Select a Batch</option>'; batches.forEach(batch => { const option = document.createElement('option'); option.value = batch.id; option.textContent = batch.name; allDataBatchSelect.appendChild(option); }); } catch (error) { console.error('Failed to initialize All Data page:', error); allDataBatchSelect.innerHTML = '<option value="">Error loading batches</option>'; } }
@@ -1000,3 +820,4 @@ document.addEventListener('DOMContentLoaded', () => {
     
     init();
 });
+

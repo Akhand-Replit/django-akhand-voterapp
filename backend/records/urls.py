@@ -4,7 +4,7 @@ from .views import (
     BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, 
     RelationshipStatsView, AnalysisStatsView, RecalculateAgesView,
     FamilyRelationshipViewSet, CallHistoryViewSet, EventViewSet,
-    AllRecordsView, SyncDataView
+    AllRecordsView
 )
 
 router = DefaultRouter()
@@ -23,6 +23,5 @@ urlpatterns = [
     path('analysis-stats/', AnalysisStatsView.as_view(), name='analysis-stats'),
     path('recalculate-ages/', RecalculateAgesView.as_view(), name='recalculate-ages'),
     path('all-records/', AllRecordsView.as_view(), name='all-records'),
-    path('sync-data/', SyncDataView.as_view(), name='sync-data'),
     path('', include(router.urls)),
 ]
