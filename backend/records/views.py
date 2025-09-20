@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.db import transaction, models
+from django.db import transaction, models, IntegrityError
 from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
@@ -204,6 +204,62 @@ class CallHistoryViewSet(viewsets.ModelViewSet):
         if record_id:
             return CallHistory.objects.filter(record_id=record_id)
         return CallHistory.objects.none()
+
+# --- NEW: View to handle syncing local data with the server ---
+class SyncDataView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        created_data = request.data.get('created', [])
+        updated_data = request.data.get('updated', [])
+        
+        try:
+            # Handle created records
+            for item in created_data:
+                batch_id = item.get('batch')
+                if not batch_id or not Batch.objects.filter(id=batch_id).exists():
+                    continue
+                
+                # Clean up fields that are not in the model
+                item.pop('event_ids', [])
+                item.pop('event_names', None)
+                item.pop('batch_name', None)
+                item.pop('id', None) # Remove temporary frontend ID
+                
+                Record.objects.create(**item)
+
+            # Handle updated records
+            valid_fields = {f.name for f in Record._meta.fields}
+            for item in updated_data:
+                record_id = item.get('id')
+                if not record_id:
+                    continue
+                
+                event_ids = item.pop('event_ids', None)
+                item.pop('id', None)
+                
+                update_payload = {k: v for k, v in item.items() if k in valid_fields}
+                
+                record_qs = Record.objects.filter(id=record_id)
+                if record_qs.exists():
+                    record_qs.update(**update_payload)
+                    
+                    if event_ids is not None:
+                        record = record_qs.first()
+                        if record:
+                            record.events.set(event_ids)
+            
+            # Clear the main cache after all operations are done
+            cache.delete('all_voter_data')
+            
+            return Response({"message": "Sync successful."}, status=status.HTTP_200_OK)
+        
+        except IntegrityError as e:
+            return Response({"error": f"Database integrity error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"An unexpected error occurred during sync: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class AllRecordsView(APIView):
     """
