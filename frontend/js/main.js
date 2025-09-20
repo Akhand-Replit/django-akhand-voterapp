@@ -169,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function handleLogout() { 
         localStorage.removeItem('authToken'); 
+        // Reset state on logout
         currentDataMode = 'direct';
         allImportedRecords = [];
         showLogin(); 
@@ -249,13 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
         searchResultsContainer.innerHTML = '<p class="text-gray-500">Searching...</p>'; 
         
         const params = { 
-            naam: document.getElementById('search-name').value.toLowerCase(), 
+            naam: document.getElementById('search-name').value, 
             voter_no: document.getElementById('search-voter-no').value, 
-            pitar_naam: document.getElementById('search-father-name').value.toLowerCase(), 
-            thikana: document.getElementById('search-address').value.toLowerCase(), 
-            matar_naam: document.getElementById('search-mother-name').value.toLowerCase(),
+            pitar_naam: document.getElementById('search-father-name').value, 
+            thikana: document.getElementById('search-address').value, 
+            matar_naam: document.getElementById('search-mother-name').value,
             kromik_no: document.getElementById('search-kromik-no').value,
-            pesha: document.getElementById('search-profession').value.toLowerCase(),
+            pesha: document.getElementById('search-profession').value,
             phone_number: document.getElementById('search-phone').value,
         };
 
@@ -286,17 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } 
         } else { // 'import' mode: client-side filtering
             
-            const filtered = allImportedRecords.filter(r => {
-                const nameMatch = !params.naam || (r.naam && r.naam.toLowerCase().includes(params.naam));
-                const voterNoMatch = !params.voter_no || r.voter_no === params.voter_no;
-                const pitarNaamMatch = !params.pitar_naam || (r.pitar_naam && r.pitar_naam.toLowerCase().includes(params.pitar_naam));
-                const thikanaMatch = !params.thikana || (r.thikana && r.thikana.toLowerCase().includes(params.thikana));
-                const matarNaamMatch = !params.matar_naam || (r.matar_naam && r.matar_naam.toLowerCase().includes(params.matar_naam));
-                const kromikNoMatch = !params.kromik_no || r.kromik_no === params.kromik_no;
-                const peshaMatch = !params.pesha || (r.pesha && r.pesha.toLowerCase().includes(params.pesha));
-                const phoneMatch = !params.phone_number || (r.phone_number && r.phone_number.includes(params.phone_number));
-                return nameMatch && voterNoMatch && pitarNaamMatch && thikanaMatch && matarNaamMatch && kromikNoMatch && peshaMatch && phoneMatch;
-            });
+            const filtered = filterImportedRecords(params);
             
             // Client-side pagination
             const page = typeof pageOrUrl === 'number' ? pageOrUrl : 1;
@@ -314,11 +305,55 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleAddRecord(e) { e.preventDefault(); if (!addRecordSuccessMessage) return; addRecordSuccessMessage.textContent = ''; const formData = new FormData(addRecordForm); const recordData = Object.fromEntries(formData.entries()); try { await addRecord(recordData); addRecordSuccessMessage.textContent = 'Record added successfully!'; addRecordForm.reset(); updateDashboardStats(); } catch (error) { alert(error.message); } }
     async function handleUploadData(e) { e.preventDefault(); if (!uploadStatus) return; uploadStatus.innerHTML = '<p class="text-blue-600">Uploading and processing file...</p>'; const batchName = document.getElementById('upload-batch-name').value; const fileInput = document.getElementById('upload-file'); const file = fileInput.files[0]; if (!batchName || !file) { uploadStatus.innerHTML = '<p class="text-red-600">Please provide a batch name and select a file.</p>'; return; } try { const result = await uploadData(batchName, file); uploadStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; uploadDataForm.reset(); updateDashboardStats(); } catch (error) { uploadStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
     async function handleAllDataBatchSelect() { const batchId = allDataBatchSelect.value; if (!allDataFileSelect || !allDataTableContainer) return; allDataFileSelect.innerHTML = '<option value="">Loading files...</option>'; allDataTableContainer.innerHTML = ''; originalRecords = []; if (!batchId) { allDataFileSelect.innerHTML = '<option value="">Select a Batch First</option>'; return; } try { const files = await getBatchFiles(batchId); allDataFileSelect.innerHTML = '<option value="all">All Files</option>'; files.forEach(file => { const option = document.createElement('option'); option.value = file; option.textContent = file; allDataFileSelect.appendChild(option); }); handleAllDataFileSelect(); } catch (error) { allDataFileSelect.innerHTML = '<option value="">Error loading files</option>'; console.error(error); } }
-    async function handleAllDataFileSelect(url = null) { if (!allDataBatchSelect || !allDataFileSelect || !allDataTableContainer) return; const batchId = allDataBatchSelect.value; const fileName = allDataFileSelect.value; allDataTableContainer.innerHTML = '<p class="p-4 text-gray-500">Loading records...</p>'; if (!batchId) return; let params; if (url) { params = url; } else { currentAllDataParams = { batch: batchId }; if (fileName && fileName !== 'all') { currentAllDataParams.file_name = fileName; } params = currentAllDataParams; } try { const data = await searchRecords(params); originalRecords = data.results; renderReadOnlyTable(data.results);
-    displayPaginationControls(allDataPaginationContainer, data.previous, data.next, handleAllDataFileSelect); } catch (error) { allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; } }
+    
+    // --- FIX: This function now respects the data mode ---
+    async function handleAllDataFileSelect(pageOrUrl = 1) { 
+        if (!allDataBatchSelect || !allDataFileSelect || !allDataTableContainer) return; 
+        const batchId = allDataBatchSelect.value; 
+        const fileName = allDataFileSelect.value; 
+        allDataTableContainer.innerHTML = '<p class="p-4 text-gray-500">Loading records...</p>'; 
+        if (!batchId) return; 
+
+        if (currentDataMode === 'direct') {
+            let params; 
+            if (typeof pageOrUrl === 'string') { 
+                params = pageOrUrl; 
+            } else { 
+                currentAllDataParams = { batch: batchId }; 
+                if (fileName && fileName !== 'all') { 
+                    currentAllDataParams.file_name = fileName; 
+                } 
+                params = currentAllDataParams; 
+            } 
+            try { 
+                const data = await searchRecords(params); 
+                originalRecords = data.results; 
+                renderReadOnlyTable(data.results);
+                displayPaginationControls(allDataPaginationContainer, data.previous, data.next, (nextUrl) => handleAllDataFileSelect(nextUrl)); 
+            } catch (error) { 
+                allDataTableContainer.innerHTML = `<p class="p-4 text-red-500">${error.message}</p>`; 
+            }
+        } else { // 'import' mode: client-side filtering
+            const params = { batch: batchId };
+            if (fileName && fileName !== 'all') {
+                params.file_name = fileName;
+            }
+            const filtered = filterImportedRecords(params);
+            const page = typeof pageOrUrl === 'number' ? pageOrUrl : 1;
+            const pageSize = 50;
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const paginatedResults = filtered.slice(start, end);
+            originalRecords = paginatedResults;
+            renderReadOnlyTable(paginatedResults);
+            displayClientSidePagination(allDataPaginationContainer, page, filtered.length, pageSize, (nextPage) => handleAllDataFileSelect(nextPage));
+        }
+    }
     
     async function openEditModal(recordId) {
-        const record = originalRecords.find(r => r.id == recordId);
+        // In import mode, we need to search the full list, not just the paginated `originalRecords`
+        const sourceData = currentDataMode === 'import' ? allImportedRecords : originalRecords;
+        const record = sourceData.find(r => r.id == recordId);
         if (!record) {
             alert('Could not find record details.');
             return;
@@ -402,6 +437,12 @@ document.addEventListener('DOMContentLoaded', () => {
             statusContainer.innerHTML = `<p class="text-green-600">Successfully saved record ${recordId}!</p>`;
             editRecordModal.classList.add('hidden');
             
+            // Invalidate local cache if in import mode
+            if (currentDataMode === 'import') {
+                allImportedRecords = []; // Force re-import on next login
+                alert("Data has been modified. Please log out and re-enter Import Mode to see changes.");
+            }
+
             if (document.querySelector('.active')?.id === 'alldata-page') {
                  handleAllDataFileSelect(currentAllDataParams);
             } else {
@@ -412,15 +453,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- FIX: This function now respects the data mode ---
     function handleRelTabClick(clickedTab) { if (!relTabs) return; relTabs.forEach(tab => tab.classList.remove('active')); clickedTab.classList.add('active'); const status = clickedTab.dataset.status; if (status === 'Stats') { displayRelationshipStats(); } else { displayRelationshipList(status); } }
     async function handleRecalculateAges() { if (!ageRecalculationStatus) return; ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; try { const result = await recalculateAllAges(); ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; initializeAgeManagementPage(); } catch (error) { ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
-    async function handleFamilyTreeSearch(event) { const input = event.target; const query = input.value.trim(); const isMainSearch = input.id === 'family-main-search'; const resultsContainer = isMainSearch ? familyMainSearchResults : familyRelativeSearchResults; if (!query) { resultsContainer.innerHTML = ''; return; } try { const data = await searchRecords({ naam__icontains: query }); resultsContainer.innerHTML = ''; if (data.results.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); } } catch (error) { resultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
+    
+    // --- FIX: This function now respects the data mode ---
+    async function handleFamilyTreeSearch(event) { const input = event.target; const query = input.value.trim(); const isMainSearch = input.id === 'family-main-search'; const resultsContainer = isMainSearch ? familyMainSearchResults : familyRelativeSearchResults; if (!query) { resultsContainer.innerHTML = ''; return; } 
+        if (currentDataMode === 'direct') {
+            try { const data = await searchRecords({ naam__icontains: query, page_size: 10 }); resultsContainer.innerHTML = ''; if (data.results.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); } } catch (error) { resultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }
+        } else { // 'import' mode: client-side filtering
+            const filtered = filterImportedRecords({ naam: query }).slice(0, 10);
+            resultsContainer.innerHTML = '';
+            if (filtered.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; }
+            else { filtered.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); }
+        }
+    }
     function selectMainPerson(person) { selectedPersonId = person.id; familySelectedPersonDetails.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`; familyManagementSection.classList.remove('hidden'); familyMainSearchResults.innerHTML = ''; familyMainSearchInput.value = person.naam; loadFamilyTree(person.id); }
     function selectRelative(relative) { selectedRelativeId = relative.id; familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`; familyRelativeSearchInput.value = relative.naam; familyAddForm.classList.remove('hidden'); }
     async function loadFamilyTree(personId, url = null) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">Loading relatives...</p>'; try { const data = await getFamilyTree(personId, url); familyCurrentRelatives.innerHTML = ''; if (data.results.length === 0) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">No relatives added yet.</p>'; } else { data.results.forEach(rel => { const relDiv = document.createElement('div'); relDiv.className = 'flex justify-between items-center p-2 border-b'; relDiv.innerHTML = ` <div> <span class="font-bold">${rel.relationship_type}:</span> <span>${rel.relative.naam} (Voter No: ${rel.relative.voter_no || 'N/A'})</span> </div> <button data-id="${rel.id}" class="remove-relative-btn text-red-500 hover:text-red-700">Remove</button> `; familyCurrentRelatives.appendChild(relDiv); }); document.querySelectorAll('.remove-relative-btn').forEach(btn => { btn.addEventListener('click', handleRemoveRelationship); }); } displayPaginationControls(familyTreePagination, data.previous, data.next, (nextUrl) => loadFamilyTree(personId, nextUrl)); } catch (error) { familyCurrentRelatives.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddRelationship() { const relationshipType = relationshipTypeInput.value.trim(); if (!selectedPersonId || !selectedRelativeId || !relationshipType) { familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.'; return; } familyAddStatus.textContent = 'Adding...'; try { await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType); familyAddStatus.textContent = 'Relationship added successfully!'; familyRelativeSearchInput.value = ''; relationshipTypeInput.value = ''; selectedRelativeId = null; familyRelativeSearchResults.innerHTML = ''; familyAddForm.classList.add('hidden'); loadFamilyTree(selectedPersonId); } catch (error) { familyAddStatus.textContent = `Error: ${error.message}`; } }
     async function handleRemoveRelationship(event) { const relationshipId = event.target.dataset.id; if (!confirm('Are you sure you want to remove this relationship?')) return; try { await removeFamilyMember(relationshipId); loadFamilyTree(selectedPersonId); } catch (error) { alert(`Failed to remove relationship: ${error.message}`); } }
-    async function handleCallHistorySearch(event) { const query = event.target.value.trim(); if (!query) { callHistorySearchResults.innerHTML = ''; return; } try { const data = await searchRecords({ naam__icontains: query }); callHistorySearchResults.innerHTML = ''; if (data.results.length === 0) { callHistorySearchResults.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => selectPersonForCallHistory(record); callHistorySearchResults.appendChild(button); }); } } catch (error) { callHistorySearchResults.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
+    
+    // --- FIX: This function now respects the data mode ---
+    async function handleCallHistorySearch(event) { const query = event.target.value.trim(); if (!query) { callHistorySearchResults.innerHTML = ''; return; } 
+        if (currentDataMode === 'direct') {
+            try { const data = await searchRecords({ naam__icontains: query, page_size: 10 }); callHistorySearchResults.innerHTML = ''; if (data.results.length === 0) { callHistorySearchResults.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => selectPersonForCallHistory(record); callHistorySearchResults.appendChild(button); }); } } catch (error) { callHistorySearchResults.innerHTML = `<p class="text-red-500">${error.message}</p>`; }
+        } else { // 'import' mode: client-side filtering
+             const filtered = filterImportedRecords({ naam: query }).slice(0, 10);
+            callHistorySearchResults.innerHTML = '';
+            if (filtered.length === 0) { callHistorySearchResults.innerHTML = '<p class="text-gray-500">No results found.</p>'; }
+            else { filtered.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => selectPersonForCallHistory(record); callHistorySearchResults.appendChild(button); }); }
+        }
+     }
     function selectPersonForCallHistory(person) { selectedPersonForCallHistory = person; callHistorySelectedPerson.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`; callHistoryManagementSection.classList.remove('hidden'); callHistorySearchResults.innerHTML = ''; callHistorySearchInput.value = person.naam; loadCallHistory(person.id); }
     async function loadCallHistory(recordId, url = null) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">Loading history...</p>'; try { const data = await getCallHistory(recordId, url); callHistoryLogsContainer.innerHTML = ''; if (data.results.length === 0) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">No call history found for this person.</p>'; } else { data.results.forEach(log => { const logDiv = document.createElement('div'); logDiv.className = 'p-3 border rounded-lg bg-gray-50'; logDiv.innerHTML = ` <p class="font-bold text-gray-700">${log.call_date}</p> <p class="text-gray-600 mt-1">${log.summary}</p> `; callHistoryLogsContainer.appendChild(logDiv); }); } displayPaginationControls(callHistoryPagination, data.previous, data.next, (nextUrl) => loadCallHistory(recordId, nextUrl)); } catch (error) { callHistoryLogsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddCallLog(event) { event.preventDefault(); const callDate = document.getElementById('call-date').value; const summary = document.getElementById('call-summary').value.trim(); if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } callLogStatus.textContent = 'Saving...'; try { await addCallLog(selectedPersonForCallHistory.id, callDate, summary); callLogStatus.textContent = 'Log saved successfully!'; addCallLogForm.reset(); loadCallHistory(selectedPersonForCallHistory.id); } catch (error) { callLogStatus.textContent = `Error: ${error.message}`; } }
@@ -602,7 +666,52 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderReadOnlyTable(records) { if (!allDataTableContainer) return; allDataTableContainer.innerHTML = ''; if (!records || records.length === 0) { allDataTableContainer.innerHTML = '<p class="p-4 text-gray-600">No records found for this selection.</p>'; return; } const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200'; table.innerHTML = ` <thead class="bg-gray-50"> <tr> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voter No</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Relationship</th> <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> </tbody> `; const tbody = table.querySelector('tbody'); records.forEach(record => { const row = document.createElement('tr'); row.dataset.recordId = record.id; row.className = 'cursor-pointer hover:bg-gray-50';
     row.innerHTML = ` <td class="px-6 py-4 whitespace-nowrap">${record.naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.voter_no || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.pitar_naam || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.thikana || ''}</td> <td class="px-6 py-4 whitespace-nowrap">${record.relationship_status || ''}</td> <td class="px-6 py-4 whitespace-nowrap"> <button data-record-id="${record.id}" class="edit-btn text-indigo-600 hover:text-indigo-900">Edit</button> </td> `; tbody.appendChild(row); }); allDataTableContainer.appendChild(table); }
 
-    function displayRelationshipList(status, url = null) { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; relPaginationContainer.innerHTML = ''; const params = { relationship_status: status }; searchRecords(url || params).then(data => { if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } const listContainer = document.createElement('div'); listContainer.className = 'space-y-4'; data.results.forEach(record => { const card = document.createElement('div'); card.className = 'result-card'; card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; listContainer.appendChild(card); }); relContentContainer.innerHTML = ''; relContentContainer.appendChild(listContainer); displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }); }
+    // --- FIX: This function now respects the data mode ---
+    function displayRelationshipList(status, pageOrUrl = 1) { 
+        if (!relContentContainer || !relPaginationContainer) return; 
+        relContentContainer.innerHTML = '<p class="text-gray-500">Loading...</p>'; 
+        relPaginationContainer.innerHTML = ''; 
+        
+        if (currentDataMode === 'direct') {
+            const params = { relationship_status: status }; 
+            const url = typeof pageOrUrl === 'string' ? pageOrUrl : null;
+            searchRecords(url || params).then(data => { 
+                if (!data.results || data.results.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; } 
+                const listContainer = document.createElement('div'); 
+                listContainer.className = 'space-y-4'; 
+                data.results.forEach(record => { 
+                    const card = document.createElement('div'); 
+                    card.className = 'result-card'; 
+                    card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `; 
+                    listContainer.appendChild(card); 
+                }); 
+                relContentContainer.innerHTML = ''; 
+                relContentContainer.appendChild(listContainer); 
+                displayPaginationControls(relPaginationContainer, data.previous, data.next, (nextUrl) => displayRelationshipList(status, nextUrl)); 
+            }).catch(error => { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; });
+        } else { // 'import' mode: client-side filtering
+            const page = typeof pageOrUrl === 'number' ? pageOrUrl : 1;
+            const filtered = filterImportedRecords({ relationship_status: status });
+            const pageSize = 50;
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const paginatedResults = filtered.slice(start, end);
+
+            if (paginatedResults.length === 0) { relContentContainer.innerHTML = `<p class="text-gray-600">No records found with status: ${status}.</p>`; return; }
+            const listContainer = document.createElement('div');
+            listContainer.className = 'space-y-4';
+            paginatedResults.forEach(record => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.innerHTML = ` <h3>${record.naam}</h3> <p><strong>Voter No:</strong> ${record.voter_no || 'N/A'}</p> <p><strong>Father's Name:</strong> ${record.pitar_naam || 'N/A'}</p> <p><strong>Address:</strong> ${record.thikana || 'N/A'}</p> <p><strong>Batch:</strong> ${record.batch_name}</p> `;
+                listContainer.appendChild(card);
+            });
+            relContentContainer.innerHTML = '';
+            relContentContainer.appendChild(listContainer);
+            displayClientSidePagination(relPaginationContainer, page, filtered.length, pageSize, (nextPage) => displayRelationshipList(status, nextPage));
+        }
+    }
+    
     async function displayRelationshipStats() { if (!relContentContainer || !relPaginationContainer) return; relContentContainer.innerHTML = '<p class="text-gray-500">Loading statistics...</p>'; relPaginationContainer.innerHTML = ''; try { const stats = await getRelationshipStats(); let byBatchHtml = '<h3>Distribution by Batch</h3><div class="space-y-4 mt-4">'; const batchData = stats.by_batch.reduce((acc, item) => { if (!acc[item.batch__name]) { acc[item.batch__name] = {}; } acc[item.batch__name][item.relationship_status] = item.count; return acc; }, {}); for (const batchName in batchData) { const counts = batchData[batchName]; byBatchHtml += ` <div class="p-4 border rounded-lg"> <h4 class="font-bold">${batchName}</h4> <div class="flex justify-center space-x-4 mt-2 items-end"> <div class="text-center"> <div class="bg-green-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Friend || 0) * 10 + 20 }px; width: 60px;">${counts.Friend || 0}</div> <div class="text-xs mt-1">Friend</div> </div> <div class="text-center"> <div class="bg-red-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Enemy || 0) * 10 + 20 }px; width: 60px;">${counts.Enemy || 0}</div> <div class="text-xs mt-1">Enemy</div> </div> <div class="text-center"> <div class="bg-yellow-500 text-white text-xs py-1 flex items-center justify-center rounded-t-md" style="height: ${ (counts.Connected || 0) * 10 + 20 }px; width: 60px;">${counts.Connected || 0}</div> <div class="text-xs mt-1">Connected</div> </div> </div> </div> `; } byBatchHtml += '</div>'; relContentContainer.innerHTML = byBatchHtml; } catch (error) { relContentContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     
     function displaySearchResults(results) {
@@ -660,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initializeAgeManagementPage() { if (ageRecalculationStatus) ageRecalculationStatus.innerHTML = ''; try { const stats = await getAnalysisStats(); renderAgeChart(stats.age_groups, 'age-management-chart-container'); } catch (error) { const container = document.getElementById('age-management-chart-container'); if (container) container.parentElement.innerHTML = `<p class="text-red-500">Failed to load age chart: ${error.message}</p>`; } }
     function renderProfessionChart(professionData) { const container = document.getElementById('profession-chart-container'); if (!container || !professionData || professionData.length === 0) { if (container) container.innerHTML = '<p class="text-gray-500">No profession data available.</p>'; return; } const canvas = container.getContext('2d'); if (Chart.getChart(canvas)) { Chart.getChart(canvas).destroy(); } const labels = professionData.map(p => p.pesha); const data = professionData.map(p => p.count); new Chart(canvas, { type: 'doughnut', data: { labels: labels, datasets: [{ label: 'Professions', data: data, backgroundColor: ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#6366F1', '#D946EF', '#FBBF24', '#34D399'], hoverOffset: 4 }] }, options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Voter Distribution by Profession' } } } }); }
     function renderGenderChart(genderData) { const container = document.getElementById('gender-chart-container'); if (!container || !genderData || genderData.length === 0) { if (container) container.innerHTML = '<p class="text-gray-500">No gender data available.</p>'; return; } const canvas = container.getContext('2d'); if (Chart.getChart(canvas)) { Chart.getChart(canvas).destroy(); } const labels = genderData.map(g => g.gender); const data = genderData.map(g => g.count); new Chart(canvas, { type: 'pie', data: { labels: labels, datasets: [{ label: 'Genders', data: data, backgroundColor: ['#3B82F6', '#EC4899', '#6B7280'], hoverOffset: 4 }] }, options: { responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Voter Distribution by Gender' } } } }); }
-    function renderAgeChart(ageData, containerId) { const container = document.getElementById(containerId); if (!container || !ageData) { if (container) container.innerHTML = '<p class="text-gray-500">No age data available.</p>'; return; } const canvas = container.getContext('2d'); if (Chart.getChart(canvas)) { Chart.getChart(canvas).destroy(); } const labels = ['18-25', '26-35', '36-45', '46-60', '60+']; const data = [ageData.group_18_25, ageData.group_26_35, ageData.group_36_45, ageData.group_46_60, ageData.group_60_plus]; new Chart(canvas, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Number of Voters', data: data, backgroundColor: '#10B981' }] }, options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Voter Distribution by Age Group' } }, scales: { y: { beginAtZero: true } } } }); }
+    function renderAgeChart(ageData, containerId) { const container = document.getElementById(containerId); if (!container || !ageData) { if (container) container.innerHTML = '<p class="text-gray-500">No age data available.</p>'; return; } const canvas = container.getContext('2d'); if (Chart.getChart(canvas)) { Chart.getChart(canvas).destroy(); } const labels = ['18-25', '26-35', '36-45', '46-60', '60+']; const data = [ageData.group_18_25, ageData.group_26_35, ageData.group_36_45, ageData.group_60_plus, ageData.group_60_plus]; new Chart(canvas, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Number of Voters', data: data, backgroundColor: '#10B981' }] }, options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Voter Distribution by Age Group' } }, scales: { y: { beginAtZero: true } } } }); }
     function initializeFamilyTreePage() { if (familyMainSearchInput) familyMainSearchInput.value = ''; if (familyMainSearchResults) familyMainSearchResults.innerHTML = ''; if (familyManagementSection) familyManagementSection.classList.add('hidden'); if (familyRelativeSearchInput) familyRelativeSearchInput.value = ''; if (familyRelativeSearchResults) familyRelativeSearchResults.innerHTML = ''; if (familyAddForm) familyAddForm.classList.add('hidden'); selectedPersonId = null; selectedRelativeId = null; }
     function initializeCallHistoryPage() { if (callHistorySearchInput) callHistorySearchInput.value = ''; if (callHistorySearchResults) callHistorySearchResults.innerHTML = ''; if (callHistoryManagementSection) callHistoryManagementSection.classList.add('hidden'); if(addCallLogForm) addCallLogForm.reset(); if(callLogStatus) callLogStatus.textContent = ''; selectedPersonForCallHistory = null; }
 
@@ -676,6 +785,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loginScreen) loginScreen.classList.add('hidden'); 
         if (appContainer) appContainer.classList.add('hidden'); // Keep app hidden initially
         if (modeSelectionModal) modeSelectionModal.classList.remove('hidden'); // Show mode modal
+    }
+    
+    // --- NEW: Helper function for client-side filtering ---
+    function filterImportedRecords(params) {
+        const lowerCaseParams = {};
+        for (const key in params) {
+            // Do not lowercase ID-based fields like 'batch'
+            if (typeof params[key] === 'string' && key !== 'batch') {
+                lowerCaseParams[key] = params[key].toLowerCase();
+            } else {
+                lowerCaseParams[key] = params[key];
+            }
+        }
+        
+        return allImportedRecords.filter(r => {
+            const nameMatch = !lowerCaseParams.naam || (r.naam && r.naam.toLowerCase().includes(lowerCaseParams.naam));
+            const voterNoMatch = !lowerCaseParams.voter_no || r.voter_no === lowerCaseParams.voter_no;
+            const pitarNaamMatch = !lowerCaseParams.pitar_naam || (r.pitar_naam && r.pitar_naam.toLowerCase().includes(lowerCaseParams.pitar_naam));
+            const thikanaMatch = !lowerCaseParams.thikana || (r.thikana && r.thikana.toLowerCase().includes(lowerCaseParams.thikana));
+            const matarNaamMatch = !lowerCaseParams.matar_naam || (r.matar_naam && r.matar_naam.toLowerCase().includes(lowerCaseParams.matar_naam));
+            const kromikNoMatch = !lowerCaseParams.kromik_no || r.kromik_no === lowerCaseParams.kromik_no;
+            const peshaMatch = !lowerCaseParams.pesha || (r.pesha && r.pesha.toLowerCase().includes(lowerCaseParams.pesha));
+            const phoneMatch = !lowerCaseParams.phone_number || (r.phone_number && r.phone_number.includes(lowerCaseParams.phone_number));
+            const batchMatch = !lowerCaseParams.batch || r.batch == lowerCaseParams.batch;
+            const fileNameMatch = !lowerCaseParams.file_name || r.file_name === lowerCaseParams.file_name;
+            const relationshipMatch = !lowerCaseParams.relationship_status || r.relationship_status === lowerCaseParams.relationship_status;
+
+            return nameMatch && voterNoMatch && pitarNaamMatch && thikanaMatch && matarNaamMatch && kromikNoMatch && peshaMatch && phoneMatch && batchMatch && fileNameMatch && relationshipMatch;
+        });
     }
 
     function init() { if (localStorage.getItem('authToken')) { showApp(); } else { showLogin(); } }
