@@ -119,6 +119,18 @@
     margin-bottom: 0.25rem;
 }
 
+/* --- NEW: Animation for Sync Button --- */
+@keyframes pulse-bg {
+  0% { background-color: #059669; } /* darker green */
+  50% { background-color: #10b981; } /* normal green */
+  100% { background-color: #059669; }
+}
+
+.pulse-sync {
+    animation: pulse-bg 2s infinite;
+}
+
+
 /* --- NEW: Responsive Styles for Mobile --- */
 @media (max-width: 768px) {
     .search-card-header {
@@ -152,4 +164,3 @@
         font-size: 0.9rem; /* Adjust font size for readability */
     }
 }
-

@@ -15,7 +15,7 @@ class BatchSerializer(serializers.ModelSerializer):
 
 class RecordSerializer(serializers.ModelSerializer):
     batch_name = serializers.CharField(source='batch.name', read_only=True)
-    # --- ADDED: Display event names in record details ---
+    # --- Display event names in record details (read-only) ---
     event_names = serializers.StringRelatedField(source='events', many=True, read_only=True)
 
     class Meta:
@@ -27,9 +27,10 @@ class RecordSerializer(serializers.ModelSerializer):
             'facebook_link', 'tiktok_link', 'youtube_link', 'insta_link',
             'photo_link', 'description', 'political_status',
             'relationship_status', 'gender', 'age', 'created_at',
-            'event_names' # --- ADDED ---
+            'events', # --- MODIFIED: Added 'events' to allow writing M2M relationships ---
+            'event_names'
         ]
-        # -- FIX: Removed extra_kwargs that was preventing 'batch' ID from being sent to the frontend --
+        # By including 'events', the serializer will expect a list of event IDs on update.
 
 class SimpleRecordSerializer(serializers.ModelSerializer):
     class Meta:
