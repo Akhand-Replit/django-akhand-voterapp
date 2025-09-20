@@ -154,4 +154,3 @@ function displayEventRecords(records) {
         eventFilterResults.appendChild(card);
     });
 }
-
