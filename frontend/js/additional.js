@@ -1,34 +1,26 @@
-// This creates a global object to hold the event page functions
-window.eventPageModule = {
-    initializeEventsPage,
-    handleAddEvent,
-    handleDeleteEvent,
-    handleFilterByEvent,
-    populateEventList,
-    populateEventFilterDropdown,
-    displayEventRecords
-};
+// --- Elements for Event Management Page ---
+const addEventForm = document.getElementById('add-event-form');
+const newEventNameInput = document.getElementById('new-event-name');
+const addEventStatus = document.getElementById('add-event-status');
+const existingEventsList = document.getElementById('existing-events-list');
+const eventFilterSelect = document.getElementById('event-filter-select');
+const filterByEventButton = document.getElementById('filter-by-event-button');
+const eventFilterResults = document.getElementById('event-filter-results');
+const eventFilterPagination = document.getElementById('event-filter-pagination');
+
+// --- Event Listeners ---
+if (addEventForm) addEventForm.addEventListener('submit', handleAddEvent);
+if (filterByEventButton) filterByEventButton.addEventListener('click', () => handleFilterByEvent());
 
 // --- Event Handlers ---
-async function initializeEventsPage() {
-    const addEventForm = document.getElementById('add-event-form');
-    const filterByEventButton = document.getElementById('filter-by-event-button');
-    if(addEventForm && !addEventForm.dataset.listenerAttached) {
-        addEventForm.addEventListener('submit', handleAddEvent);
-        addEventForm.dataset.listenerAttached = 'true';
-    }
-    if(filterByEventButton && !filterByEventButton.dataset.listenerAttached) {
-        filterByEventButton.addEventListener('click', () => handleFilterByEvent());
-        filterByEventButton.dataset.listenerAttached = 'true';
-    }
 
+async function initializeEventsPage() {
     try {
         const eventsResponse = await getEvents();
+        // --- FIX: Access the .results property from the paginated response ---
         populateEventList(eventsResponse.results);
         populateEventFilterDropdown(eventsResponse.results);
     } catch (error) {
-        const existingEventsList = document.getElementById('existing-events-list');
-        const eventFilterSelect = document.getElementById('event-filter-select');
         if(existingEventsList) existingEventsList.innerHTML = `<p class="text-red-500">${error.message}</p>`;
         if(eventFilterSelect) eventFilterSelect.innerHTML = `<option>Error loading events</option>`;
     }
@@ -36,8 +28,6 @@ async function initializeEventsPage() {
 
 async function handleAddEvent(e) {
     e.preventDefault();
-    const newEventNameInput = document.getElementById('new-event-name');
-    const addEventStatus = document.getElementById('add-event-status');
     const eventName = newEventNameInput.value.trim();
     if (!eventName) {
         addEventStatus.textContent = 'Event name cannot be empty.';
@@ -52,7 +42,7 @@ async function handleAddEvent(e) {
         await addEvent(eventName);
         addEventStatus.textContent = 'Event added successfully!';
         addEventStatus.className = 'text-green-600 text-sm';
-        e.target.reset();
+        addEventForm.reset();
         initializeEventsPage(); // Refresh the lists
     } catch (error) {
         addEventStatus.textContent = error.message;
@@ -73,9 +63,6 @@ async function handleDeleteEvent(eventId) {
 }
 
 async function handleFilterByEvent(url = null) {
-    const eventFilterSelect = document.getElementById('event-filter-select');
-    const eventFilterResults = document.getElementById('event-filter-results');
-    const eventFilterPagination = document.getElementById('event-filter-pagination');
     const eventId = eventFilterSelect.value;
     if (!eventId || isNaN(parseInt(eventId))) {
         eventFilterResults.innerHTML = '<p class="text-gray-600">Please select a valid event to filter.</p>';
@@ -94,10 +81,11 @@ async function handleFilterByEvent(url = null) {
 }
 
 // --- UI Update Functions ---
+
 function populateEventList(events) {
-    const existingEventsList = document.getElementById('existing-events-list');
     if (!existingEventsList) return;
     existingEventsList.innerHTML = '';
+    // --- FIX: Check if the 'events' array is valid ---
     if (!events || events.length === 0) {
         existingEventsList.innerHTML = '<p class="text-gray-500">No events created yet.</p>';
         return;
@@ -113,6 +101,7 @@ function populateEventList(events) {
         existingEventsList.appendChild(div);
     });
 
+    // Add event listeners to delete buttons
     document.querySelectorAll('.delete-event-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const eventId = e.target.dataset.eventId;
@@ -122,9 +111,9 @@ function populateEventList(events) {
 }
 
 function populateEventFilterDropdown(events) {
-    const eventFilterSelect = document.getElementById('event-filter-select');
     if (!eventFilterSelect) return;
     eventFilterSelect.innerHTML = '<option value="">Select an Event</option>';
+    // --- FIX: Check if the 'events' array is valid ---
     if (!events) return;
     events.forEach(event => {
         const option = document.createElement('option');
@@ -135,7 +124,6 @@ function populateEventFilterDropdown(events) {
 }
 
 function displayEventRecords(records) {
-    const eventFilterResults = document.getElementById('event-filter-results');
     if (!eventFilterResults) return;
     eventFilterResults.innerHTML = '';
     if (!records || records.length === 0) {
