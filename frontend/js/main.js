@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalRecords = []; // Used for modals, holds the currently displayed page of records
     let currentAllDataParams = {};
     let progressInterval = null; // To hold the interval for the progress bar
+    let currentRecordForFamily = null; // Holds the full record object being edited
+    let selectedRelativeForFamily = null; // Holds the selected relative to be added
 
     // --- Global Element References ---
     const loginScreen = document.getElementById('login-screen');
@@ -43,26 +45,54 @@ document.addEventListener('DOMContentLoaded', () => {
         callhistory: document.getElementById('callhistory-page'),
     };
 
+    // --- Search Page Elements ---
     const searchForm = document.getElementById('search-form');
     const searchResultsContainer = document.getElementById('search-results');
     const searchPaginationContainer = document.getElementById('search-pagination');
+    
+    // --- Add/Upload Page Elements ---
     const addRecordForm = document.getElementById('add-record-form');
     const addRecordBatchSelect = document.getElementById('add-record-batch');
     const addRecordSuccessMessage = document.getElementById('add-record-success');
     const uploadDataForm = document.getElementById('upload-data-form');
     const uploadStatus = document.getElementById('upload-status');
+    
+    // --- All Data Page Elements ---
     const allDataBatchSelect = document.getElementById('alldata-batch-select');
     const allDataFileSelect = document.getElementById('alldata-file-select');
     const allDataTableContainer = document.getElementById('alldata-table-container');
     const allDataStatus = document.getElementById('alldata-status');
     const allDataPaginationContainer = document.getElementById('alldata-pagination');
     
+    // --- Edit Modal Elements ---
     const editRecordModal = document.getElementById('edit-record-modal');
     const editRecordForm = document.getElementById('edit-record-form');
     const modalCloseButton = document.getElementById('modal-close-button');
     const modalCloseButtonX = document.getElementById('modal-close-button-x');
     const modalSaveButton = document.getElementById('modal-save-button');
     const editRecordIdInput = document.getElementById('edit-record-id');
+    const openFamilyManagerBtn = document.getElementById('open-family-manager-btn');
+    const currentFamilyMembersList = document.getElementById('current-family-members-list');
+
+    // --- Family Manager Modal Elements ---
+    const familyManagerModal = document.getElementById('family-manager-modal');
+    const familyModalCloseBtnX = document.getElementById('family-modal-close-button-x');
+    const familyTabExisting = document.getElementById('family-tab-existing');
+    const familyTabNew = document.getElementById('family-tab-new');
+    const addExistingMemberTab = document.getElementById('add-existing-member-tab');
+    const addNewMemberTab = document.getElementById('add-new-member-tab');
+    const familyMemberSearchInput = document.getElementById('family-member-search-input');
+    const familyMemberSearchResults = document.getElementById('family-member-search-results');
+    const selectedFamilyMemberDetails = document.getElementById('selected-family-member-details');
+    const addExistingMemberForm = document.getElementById('add-existing-member-form');
+    const existingMemberRelationshipInput = document.getElementById('existing-member-relationship');
+    const addExistingFamilyMemberBtn = document.getElementById('add-existing-family-member-btn');
+    const addExistingStatus = document.getElementById('add-existing-status');
+    const addNewFamilyMemberForm = document.getElementById('add-new-family-member-form');
+    const addNewStatus = document.getElementById('add-new-status');
+
+
+    // --- Other Page Elements ---
     const relTabs = document.querySelectorAll('.rel-tab-button');
     const relContentContainer = document.getElementById('relationships-content');
     const relPaginationContainer = document.getElementById('relationships-pagination');
@@ -143,9 +173,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addEventForm) addEventForm.addEventListener('submit', handleAddEvent);
     if (filterByEventButton) filterByEventButton.addEventListener('click', () => handleFilterByEvent());
 
+    // --- Modal Listeners ---
     if (modalCloseButton) modalCloseButton.addEventListener('click', () => editRecordModal.classList.add('hidden'));
     if (modalCloseButtonX) modalCloseButtonX.addEventListener('click', () => editRecordModal.classList.add('hidden'));
     if (modalSaveButton) modalSaveButton.addEventListener('click', handleModalSave);
+
+    // --- NEW Family Manager Modal Listeners ---
+    if (openFamilyManagerBtn) openFamilyManagerBtn.addEventListener('click', openFamilyManager);
+    if (familyModalCloseBtnX) familyModalCloseBtnX.addEventListener('click', () => familyManagerModal.classList.add('hidden'));
+    if (familyTabExisting) familyTabExisting.addEventListener('click', () => switchFamilyTab('existing'));
+    if (familyTabNew) familyTabNew.addEventListener('click', () => switchFamilyTab('new'));
+    if (familyMemberSearchInput) familyMemberSearchInput.addEventListener('input', debounce(handleFamilyMemberSearch, 300));
+    if (addExistingFamilyMemberBtn) addExistingFamilyMemberBtn.addEventListener('click', handleAddExistingMember);
+    if (addNewFamilyMemberForm) addNewFamilyMemberForm.addEventListener('submit', handleAddNewMemberFormSubmit);
+
 
     if (allDataTableContainer) {
         allDataTableContainer.addEventListener('click', (e) => {
@@ -351,13 +392,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function openEditModal(recordId) {
-        // In import mode, we need to search the full list, not just the paginated `originalRecords`
         const sourceData = currentDataMode === 'import' ? allImportedRecords : originalRecords;
         const record = sourceData.find(r => r.id == recordId);
         if (!record) {
             alert('Could not find record details.');
             return;
         }
+        
+        // Store the full record object for family management
+        currentRecordForFamily = record;
 
         editRecordIdInput.value = record.id;
         document.getElementById('edit-naam').value = record.naam || '';
@@ -399,6 +442,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             eventsContainer.innerHTML = '<p class="text-red-500">Could not load events.</p>';
         }
+
+        // NEW: Load current family members
+        loadCurrentFamilyMembers(record.id);
 
         editRecordModal.classList.remove('hidden');
     }
@@ -453,6 +499,176 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- NEW: Family Management Handlers ---
+    
+    function openFamilyManager() {
+        // Reset the family modal state
+        familyMemberSearchInput.value = '';
+        familyMemberSearchResults.innerHTML = '';
+        selectedFamilyMemberDetails.innerHTML = '';
+        selectedFamilyMemberDetails.classList.add('hidden');
+        addExistingMemberForm.classList.add('hidden');
+        existingMemberRelationshipInput.value = '';
+        addExistingStatus.textContent = '';
+        addNewFamilyMemberForm.reset();
+        addNewStatus.textContent = '';
+        selectedRelativeForFamily = null;
+        switchFamilyTab('existing'); // Default to the first tab
+        familyManagerModal.classList.remove('hidden');
+    }
+
+    function switchFamilyTab(tab) {
+        if (tab === 'existing') {
+            addExistingMemberTab.classList.remove('hidden');
+            addNewMemberTab.classList.add('hidden');
+            familyTabExisting.classList.add('active');
+            familyTabNew.classList.remove('active');
+        } else {
+            addExistingMemberTab.classList.add('hidden');
+            addNewMemberTab.classList.remove('hidden');
+            familyTabExisting.classList.remove('active');
+            familyTabNew.classList.add('active');
+        }
+    }
+
+    async function loadCurrentFamilyMembers(recordId) {
+        currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">Loading family members...</p>';
+        try {
+            // Note: The family tree API seems to be paginated in your setup, 
+            // but for this small list, we'll just fetch the first page.
+            const data = await getFamilyTree(recordId);
+            currentFamilyMembersList.innerHTML = '';
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(rel => {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.className = 'text-sm p-1.5 flex justify-between items-center';
+                    memberDiv.innerHTML = `
+                        <div>
+                            <span class="font-semibold text-gray-700">${rel.relationship_type}:</span>
+                            <span class="text-gray-600 ml-2">${rel.relative.naam}</span>
+                        </div>
+                        <button data-id="${rel.id}" class="remove-relative-btn text-red-400 hover:text-red-600 text-xs">Remove</button>
+                    `;
+                    currentFamilyMembersList.appendChild(memberDiv);
+                });
+                document.querySelectorAll('.remove-relative-btn').forEach(btn => {
+                    btn.addEventListener('click', handleRemoveRelationship);
+                });
+            } else {
+                currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">No family members added yet.</p>';
+            }
+        } catch (error) {
+            currentFamilyMembersList.innerHTML = `<p class="text-red-500 text-sm">Error loading family: ${error.message}</p>`;
+        }
+    }
+
+    async function handleFamilyMemberSearch() {
+        const query = familyMemberSearchInput.value.trim();
+        familyMemberSearchResults.innerHTML = '';
+        if (query.length < 2) return;
+
+        try {
+            const data = await searchRecords({ naam__icontains: query, page_size: 5 });
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(record => {
+                    // Don't show the person themselves in the search results
+                    if (record.id === currentRecordForFamily.id) return;
+
+                    const resultBtn = document.createElement('button');
+                    resultBtn.className = 'block w-full text-left p-2 hover:bg-gray-100';
+                    resultBtn.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`;
+                    resultBtn.onclick = () => {
+                        selectedRelativeForFamily = record;
+                        familyMemberSearchResults.innerHTML = '';
+                        selectedFamilyMemberDetails.innerHTML = `<p class="text-sm font-medium">Selected: ${record.naam}</p>`;
+                        selectedFamilyMemberDetails.classList.remove('hidden');
+                        addExistingMemberForm.classList.remove('hidden');
+                    };
+                    familyMemberSearchResults.appendChild(resultBtn);
+                });
+            } else {
+                familyMemberSearchResults.innerHTML = '<p class="p-2 text-sm text-gray-500">No results found.</p>';
+            }
+        } catch (error) {
+             familyMemberSearchResults.innerHTML = `<p class="p-2 text-sm text-red-500">${error.message}</p>`;
+        }
+    }
+
+    async function handleAddExistingMember() {
+        const relationshipType = existingMemberRelationshipInput.value.trim();
+        if (!selectedRelativeForFamily || !relationshipType) {
+            addExistingStatus.textContent = 'Please select a person and define the relationship.';
+            addExistingStatus.className = 'text-red-500 text-sm text-center mt-2';
+            return;
+        }
+
+        addExistingStatus.textContent = 'Adding...';
+        addExistingStatus.className = 'text-blue-500 text-sm text-center mt-2';
+
+        try {
+            await addFamilyMember(currentRecordForFamily.id, selectedRelativeForFamily.id, relationshipType);
+            addExistingStatus.textContent = 'Successfully added!';
+            addExistingStatus.className = 'text-green-600 text-sm text-center mt-2';
+            
+            setTimeout(() => {
+                familyManagerModal.classList.add('hidden');
+                loadCurrentFamilyMembers(currentRecordForFamily.id);
+            }, 1000);
+
+        } catch (error) {
+            addExistingStatus.textContent = `Error: ${error.message}`;
+            addExistingStatus.className = 'text-red-500 text-sm text-center mt-2';
+        }
+    }
+
+    async function handleAddNewMemberFormSubmit(e) {
+        e.preventDefault();
+        const formData = new FormData(addNewFamilyMemberForm);
+        const name = formData.get('new-member-name');
+        const relationship = formData.get('new-member-relationship');
+
+        if (!name || !relationship) {
+            addNewStatus.textContent = 'Name and Relationship are required.';
+            addNewStatus.className = 'text-red-500 text-sm text-center mt-2';
+            return;
+        }
+
+        const newRecordData = {
+            naam: name,
+            voter_no: formData.get('new-member-voter-no'),
+            pitar_naam: formData.get('new-member-father'),
+            matar_naam: formData.get('new-member-mother'),
+            phone_number: formData.get('new-member-phone'),
+            batch: currentRecordForFamily.batch // Use the same batch as the person being edited
+        };
+
+        addNewStatus.textContent = 'Creating new record...';
+        addNewStatus.className = 'text-blue-500 text-sm text-center mt-2';
+
+        try {
+            // Step 1: Create the new person's record
+            const newRecord = await addRecord(newRecordData);
+            
+            addNewStatus.textContent = 'Linking family member...';
+
+            // Step 2: Add the relationship
+            await addFamilyMember(currentRecordForFamily.id, newRecord.id, relationship);
+
+            addNewStatus.textContent = 'Successfully added!';
+            addNewStatus.className = 'text-green-600 text-sm text-center mt-2';
+
+            setTimeout(() => {
+                familyManagerModal.classList.add('hidden');
+                loadCurrentFamilyMembers(currentRecordForFamily.id);
+            }, 1000);
+
+        } catch (error) {
+            addNewStatus.textContent = `Error: ${error.message}`;
+            addNewStatus.className = 'text-red-500 text-sm text-center mt-2';
+        }
+    }
+
+
     // --- FIX: This function now respects the data mode ---
     function handleRelTabClick(clickedTab) { if (!relTabs) return; relTabs.forEach(tab => tab.classList.remove('active')); clickedTab.classList.add('active'); const status = clickedTab.dataset.status; if (status === 'Stats') { displayRelationshipStats(); } else { displayRelationshipList(status); } }
     async function handleRecalculateAges() { if (!ageRecalculationStatus) return; ageRecalculationStatus.innerHTML = '<p class="text-blue-600">Recalculating ages for all records. This might take a moment...</p>'; try { const result = await recalculateAllAges(); ageRecalculationStatus.innerHTML = `<p class="text-green-600">${result.message}</p>`; initializeAgeManagementPage(); } catch (error) { ageRecalculationStatus.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`; } }
@@ -462,17 +678,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentDataMode === 'direct') {
             try { const data = await searchRecords({ naam__icontains: query, page_size: 10 }); resultsContainer.innerHTML = ''; if (data.results.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; } else { data.results.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); } } catch (error) { resultsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; }
         } else { // 'import' mode: client-side filtering
-            const filtered = filterImportedRecords({ naam: query }).slice(0, 10);
+             const filtered = filterImportedRecords({ naam: query }).slice(0, 10);
             resultsContainer.innerHTML = '';
             if (filtered.length === 0) { resultsContainer.innerHTML = '<p class="text-gray-500">No results found.</p>'; }
             else { filtered.forEach(record => { const button = document.createElement('button'); button.className = 'block w-full text-left p-2 rounded hover:bg-gray-100'; button.textContent = `${record.naam} (Voter No: ${record.voter_no || 'N/A'})`; button.onclick = () => { if (isMainSearch) { selectMainPerson(record); } else { selectRelative(record); } }; resultsContainer.appendChild(button); }); }
         }
-    }
+     }
     function selectMainPerson(person) { selectedPersonId = person.id; familySelectedPersonDetails.innerHTML = `<p><strong>Name:</strong> ${person.naam}</p><p><strong>Voter No:</strong> ${person.voter_no || 'N/A'}</p>`; familyManagementSection.classList.remove('hidden'); familyMainSearchResults.innerHTML = ''; familyMainSearchInput.value = person.naam; loadFamilyTree(person.id); }
     function selectRelative(relative) { selectedRelativeId = relative.id; familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`; familyRelativeSearchInput.value = relative.naam; familyAddForm.classList.remove('hidden'); }
     async function loadFamilyTree(personId, url = null) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">Loading relatives...</p>'; try { const data = await getFamilyTree(personId, url); familyCurrentRelatives.innerHTML = ''; if (data.results.length === 0) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">No relatives added yet.</p>'; } else { data.results.forEach(rel => { const relDiv = document.createElement('div'); relDiv.className = 'flex justify-between items-center p-2 border-b'; relDiv.innerHTML = ` <div> <span class="font-bold">${rel.relationship_type}:</span> <span>${rel.relative.naam} (Voter No: ${rel.relative.voter_no || 'N/A'})</span> </div> <button data-id="${rel.id}" class="remove-relative-btn text-red-500 hover:text-red-700">Remove</button> `; familyCurrentRelatives.appendChild(relDiv); }); document.querySelectorAll('.remove-relative-btn').forEach(btn => { btn.addEventListener('click', handleRemoveRelationship); }); } displayPaginationControls(familyTreePagination, data.previous, data.next, (nextUrl) => loadFamilyTree(personId, nextUrl)); } catch (error) { familyCurrentRelatives.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddRelationship() { const relationshipType = relationshipTypeInput.value.trim(); if (!selectedPersonId || !selectedRelativeId || !relationshipType) { familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.'; return; } familyAddStatus.textContent = 'Adding...'; try { await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType); familyAddStatus.textContent = 'Relationship added successfully!'; familyRelativeSearchInput.value = ''; relationshipTypeInput.value = ''; selectedRelativeId = null; familyRelativeSearchResults.innerHTML = ''; familyAddForm.classList.add('hidden'); loadFamilyTree(selectedPersonId); } catch (error) { familyAddStatus.textContent = `Error: ${error.message}`; } }
-    async function handleRemoveRelationship(event) { const relationshipId = event.target.dataset.id; if (!confirm('Are you sure you want to remove this relationship?')) return; try { await removeFamilyMember(relationshipId); loadFamilyTree(selectedPersonId); } catch (error) { alert(`Failed to remove relationship: ${error.message}`); } }
+    async function handleRemoveRelationship(event) { const relationshipId = event.target.dataset.id; if (!confirm('Are you sure you want to remove this relationship?')) return; try { await removeFamilyMember(relationshipId); 
+        // Decide which family tree to reload based on which modal is open
+        if (!familyManagerModal.classList.contains('hidden')) { // Family Tree Page modal
+             loadFamilyTree(selectedPersonId);
+        } else if (!editRecordModal.classList.contains('hidden')) { // Edit Record modal
+             loadCurrentFamilyMembers(currentRecordForFamily.id);
+        }
+    } catch (error) { alert(`Failed to remove relationship: ${error.message}`); } }
     
     // --- FIX: This function now respects the data mode ---
     async function handleCallHistorySearch(event) { const query = event.target.value.trim(); if (!query) { callHistorySearchResults.innerHTML = ''; return; } 
@@ -820,4 +1043,3 @@ document.addEventListener('DOMContentLoaded', () => {
     
     init();
 });
-

@@ -11,6 +11,12 @@
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
+        /* Style for the family manager modal tabs */
+        .family-tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -455,6 +461,17 @@
                                 </div>
                             </div>
                         </form>
+
+                        <!-- NEW: Family Management Section -->
+                        <div class="mt-8 border-t pt-4">
+                            <h4 class="text-lg font-medium text-gray-800 mb-2">Family Members</h4>
+                            <div id="current-family-members-list" class="space-y-2 max-h-40 overflow-y-auto p-2 border rounded-md bg-gray-50">
+                                <!-- Family members will be loaded here -->
+                            </div>
+                            <button id="open-family-manager-btn" class="mt-3 w-full text-sm bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
+                                Add / Manage Family
+                            </button>
+                        </div>
                     </div>
                     <div class="items-center px-4 py-3 border-t mt-4 text-right">
                         <button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
@@ -467,6 +484,64 @@
                 </div>
             </div>
         </div>
+
+        <!-- NEW: Family Manager Modal -->
+        <div id="family-manager-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[60]">
+             <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                 <div class="flex justify-between items-center border-b pb-3 mb-4">
+                     <h3 class="text-xl leading-6 font-medium text-gray-900">Add Family Member</h3>
+                     <button id="family-modal-close-button-x" class="text-gray-400 hover:text-gray-600">
+                         <span class="text-2xl">&times;</span>
+                     </button>
+                 </div>
+                 
+                 <!-- Tabs -->
+                 <div class="border-b border-gray-200">
+                     <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                         <button id="family-tab-existing" class="family-tab-button active py-3 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                             Add Existing Member
+                         </button>
+                         <button id="family-tab-new" class="family-tab-button py-3 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                             Add New Member
+                         </button>
+                     </nav>
+                 </div>
+        
+                 <!-- Add Existing Member Tab Content -->
+                 <div id="add-existing-member-tab" class="mt-4">
+                     <label for="family-member-search-input" class="block text-sm font-medium text-gray-700">Search for an existing person</label>
+                     <input type="text" id="family-member-search-input" placeholder="Search by Voter No. or Name..." class="mt-1 w-full px-3 py-2 border rounded-md">
+                     <div id="family-member-search-results" class="mt-2 max-h-40 overflow-y-auto border rounded-md"></div>
+                     
+                     <div id="selected-family-member-details" class="mt-4 p-3 bg-blue-50 rounded-md hidden"></div>
+                     
+                     <div id="add-existing-member-form" class="mt-4 space-y-3 hidden">
+                        <label for="existing-member-relationship" class="block text-sm font-medium text-gray-700">Relationship to this person</label>
+                        <input type="text" id="existing-member-relationship" placeholder="e.g., Father, Son, Spouse" class="w-full px-3 py-2 border rounded-md">
+                        <button id="add-existing-family-member-btn" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Add Family Member</button>
+                        <p id="add-existing-status" class="text-sm text-center mt-2"></p>
+                     </div>
+                 </div>
+        
+                 <!-- Add New Member Tab Content -->
+                 <div id="add-new-member-tab" class="hidden mt-4">
+                     <form id="add-new-family-member-form">
+                         <p class="text-sm text-gray-600 mb-4">Add a new person who is not in the database.</p>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <input type="text" id="new-member-name" placeholder="Name (Required)" class="px-4 py-2 border rounded-lg" required>
+                             <input type="text" id="new-member-voter-no" placeholder="Voter No." class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-father" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-mother" placeholder="Mother's Name" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-phone" placeholder="Phone Number" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-relationship" placeholder="Relationship (Required)" class="px-4 py-2 border rounded-lg" required>
+                         </div>
+                         <button type="submit" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Save and Add as Family Member</button>
+                     </form>
+                     <p id="add-new-status" class="text-sm text-center mt-2"></p>
+                 </div>
+             </div>
+        </div>
+
     </div>
 
         <!-- Mode Selection Modal -->
@@ -499,4 +574,3 @@
     <script src="js/main.js"></script>
 </body>
 </html>
-
