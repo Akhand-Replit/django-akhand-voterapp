@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allImportedRecords = [];
     let originalRecords = []; // Used for modals, holds the currently displayed page of records
     let currentAllDataParams = {};
+    let progressInterval = null; // To hold the interval for the progress bar
 
     // --- Global Element References ---
     const loginScreen = document.getElementById('login-screen');
@@ -105,6 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const importModeBtn = document.getElementById('import-mode-btn');
     const directModeBtn = document.getElementById('direct-mode-btn');
     const modeLoadingStatus = document.getElementById('mode-loading-status');
+    const importProgressContainer = document.getElementById('import-progress-container');
+    const importProgressBar = document.getElementById('import-progress-bar');
 
 
     // --- Event Listeners ---
@@ -166,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function handleLogout() { 
         localStorage.removeItem('authToken'); 
-        // Reset state on logout
         currentDataMode = 'direct';
         allImportedRecords = [];
         showLogin(); 
@@ -184,23 +186,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleImportMode() {
-        modeLoadingStatus.innerHTML = 'Loading all records from database... <br> This may take a moment.';
+        // Reset UI elements
+        modeLoadingStatus.innerHTML = 'Starting import...';
         modeLoadingStatus.classList.remove('hidden');
+        importProgressContainer.classList.remove('hidden');
+        importProgressBar.style.width = '0%';
         importModeBtn.disabled = true;
         directModeBtn.disabled = true;
+
+        // Simulate progress
+        let progress = 0;
+        progressInterval = setInterval(() => {
+            progress += Math.random() * 5; // Increment progress randomly
+            if (progress > 95) { // Don't let it reach 100% on its own
+                progress = 95;
+            }
+            importProgressBar.style.width = progress + '%';
+             modeLoadingStatus.innerHTML = `Loading all records... ${Math.round(progress)}%`;
+        }, 100); // Update every 100ms
 
         try {
             const data = await getAllRecords();
             allImportedRecords = data;
             currentDataMode = 'import';
+
+            // Complete the progress bar
+            clearInterval(progressInterval);
+            importProgressBar.style.width = '100%';
             modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records loaded successfully!</p>`;
+            
             setTimeout(() => {
                 modeSelectionModal.classList.add('hidden');
+                appContainer.classList.remove('hidden'); // <-- FIX: Show the main app
                 navigateTo('dashboard');
                 updateDashboardStats();
+                // Reset for next time
+                importProgressContainer.classList.add('hidden');
+                importProgressBar.style.width = '0%';
             }, 1500);
 
         } catch (error) {
+            clearInterval(progressInterval);
+            importProgressContainer.classList.add('hidden');
             modeLoadingStatus.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
         } finally {
             importModeBtn.disabled = false;
@@ -210,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDirectMode() {
         currentDataMode = 'direct';
+        appContainer.classList.remove('hidden'); // <-- FIX: Show the main app
         modeSelectionModal.classList.add('hidden');
         navigateTo('dashboard');
         updateDashboardStats();
