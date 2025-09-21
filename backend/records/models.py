@@ -16,13 +16,14 @@ class Event(models.Model):
         return self.name
 
 class Record(models.Model):
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, db_index=True)
+    # Allow batch to be nullable
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, db_index=True, null=True, blank=True)
     # --- ADDED ManyToManyField FOR EVENTS ---
     events = models.ManyToManyField(Event, blank=True, related_name='records')
-    file_name = models.CharField(max_length=255)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
     kromik_no = models.CharField("ক্রমিক নং", max_length=50)
     naam = models.TextField("নাম")
-    voter_no = models.CharField("ভোটার নং", max_length=100, db_index=True)
+    voter_no = models.CharField("ভোটার নং", max_length=100, db_index=True, null=True, blank=True)
     
     pitar_naam = models.TextField("পিতার নাম", blank=True, null=True)
     matar_naam = models.TextField("মাতার নাম", blank=True, null=True)

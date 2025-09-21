@@ -29,7 +29,11 @@ class RecordSerializer(serializers.ModelSerializer):
             'relationship_status', 'gender', 'age', 'created_at',
             'event_names' # --- ADDED ---
         ]
-        # -- FIX: Removed extra_kwargs that was preventing 'batch' ID from being sent to the frontend --
+        extra_kwargs = {
+            'batch': {'required': False, 'allow_null': True},
+            'file_name': {'required': False, 'allow_null': True}
+        }
+
 
 class SimpleRecordSerializer(serializers.ModelSerializer):
     class Meta:
@@ -54,3 +58,4 @@ class CallHistorySerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'record': {'write_only': True} 
         }
+

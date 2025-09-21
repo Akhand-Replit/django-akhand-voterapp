@@ -623,45 +623,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleAddNewMemberFormSubmit(e) {
         e.preventDefault();
-        const formData = new FormData(addNewFamilyMemberForm);
-        const name = formData.get('new-member-name');
-        const relationship = formData.get('new-member-relationship');
-
+        const newMemberNameInput = document.getElementById('new-member-name');
+        const newMemberRelationshipInput = document.getElementById('new-member-relationship');
+        const name = newMemberNameInput.value.trim();
+        const relationship = newMemberRelationshipInput.value.trim();
+    
         if (!name || !relationship) {
             addNewStatus.textContent = 'Name and Relationship are required.';
             addNewStatus.className = 'text-red-500 text-sm text-center mt-2';
             return;
         }
-
+    
         const newRecordData = {
             naam: name,
-            voter_no: formData.get('new-member-voter-no'),
-            pitar_naam: formData.get('new-member-father'),
-            matar_naam: formData.get('new-member-mother'),
-            phone_number: formData.get('new-member-phone'),
-            batch: currentRecordForFamily.batch // Use the same batch as the person being edited
+            voter_no: document.getElementById('new-member-voter-no').value,
+            pitar_naam: document.getElementById('new-member-father').value,
+            matar_naam: document.getElementById('new-member-mother').value,
+            phone_number: document.getElementById('new-member-phone').value,
+            kromik_no: 'N/A' // Provide a default for required fields
         };
-
+    
         addNewStatus.textContent = 'Creating new record...';
         addNewStatus.className = 'text-blue-500 text-sm text-center mt-2';
-
+    
         try {
             // Step 1: Create the new person's record
             const newRecord = await addRecord(newRecordData);
             
             addNewStatus.textContent = 'Linking family member...';
-
+    
             // Step 2: Add the relationship
             await addFamilyMember(currentRecordForFamily.id, newRecord.id, relationship);
-
+    
             addNewStatus.textContent = 'Successfully added!';
             addNewStatus.className = 'text-green-600 text-sm text-center mt-2';
-
+    
             setTimeout(() => {
                 familyManagerModal.classList.add('hidden');
                 loadCurrentFamilyMembers(currentRecordForFamily.id);
             }, 1000);
-
+    
         } catch (error) {
             addNewStatus.textContent = `Error: ${error.message}`;
             addNewStatus.className = 'text-red-500 text-sm text-center mt-2';
