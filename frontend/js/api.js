@@ -315,13 +315,42 @@ async function getRecordsForEvent(eventId, url = null) {
 }
 
 
-async function getAllRecords() {
+async function getAllRecords(progressCallback) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
 
     const response = await fetch(`${API_BASE_URL}/api/all-records/`, {
         headers: { 'Authorization': `Token ${token}` },
     });
-    if (!response.ok) throw new Error('Failed to fetch all records.');
-    return response.json();
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch all records.');
+    }
+
+    const reader = response.body.getReader();
+    const contentLength = +response.headers.get('Content-Length');
+    let receivedLength = 0;
+    const chunks = [];
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        chunks.push(value);
+        receivedLength += value.length;
+        if (progressCallback) {
+            progressCallback(receivedLength, contentLength);
+        }
+    }
+
+    const chunksAll = new Uint8Array(receivedLength);
+    let position = 0;
+    for (const chunk of chunks) {
+        chunksAll.set(chunk, position);
+        position += chunk.length;
+    }
+
+    const result = new TextDecoder("utf-8").decode(chunksAll);
+    return JSON.parse(result);
 }

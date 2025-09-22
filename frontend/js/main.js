@@ -138,6 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const modeLoadingStatus = document.getElementById('mode-loading-status');
     const importProgressContainer = document.getElementById('import-progress-container');
     const importProgressBar = document.getElementById('import-progress-bar');
+    const importDetailsContainer = document.getElementById('import-details-container');
+    const downloadedSizeEl = document.getElementById('downloaded-size');
+    const totalSizeEl = document.getElementById('total-size');
+    const downloadSpeedEl = document.getElementById('download-speed');
+    const timeLeftEl = document.getElementById('time-left');
 
 
     // --- Event Listeners ---
@@ -228,48 +233,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleImportMode() {
-        // Reset UI elements
         modeLoadingStatus.innerHTML = 'Starting import...';
         modeLoadingStatus.classList.remove('hidden');
         importProgressContainer.classList.remove('hidden');
+        importDetailsContainer.classList.remove('hidden');
         importProgressBar.style.width = '0%';
         importModeBtn.disabled = true;
         directModeBtn.disabled = true;
-
-        // Simulate progress
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            progress += Math.random() * 5; // Increment progress randomly
-            if (progress > 95) { // Don't let it reach 100% on its own
-                progress = 95;
+    
+        let lastLoaded = 0;
+        let lastTime = Date.now();
+    
+        const progressCallback = (loaded, total) => {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000; // in seconds
+            const loadedDiff = loaded - lastLoaded;
+    
+            if (timeDiff > 0.5 || loaded === total) { // Update speed every 0.5s or at the end
+                const speed = loadedDiff / timeDiff; // bytes per second
+                downloadSpeedEl.textContent = `${(speed / 1024 / 1024).toFixed(2)} MB/s`;
+                
+                if (speed > 0) {
+                    const timeLeft = (total - loaded) / speed; // in seconds
+                    timeLeftEl.textContent = `${Math.round(timeLeft)}s`;
+                } else {
+                    timeLeftEl.textContent = 'N/A';
+                }
+    
+                lastTime = now;
+                lastLoaded = loaded;
             }
-            importProgressBar.style.width = progress + '%';
-             modeLoadingStatus.innerHTML = `Loading all records... ${Math.round(progress)}%`;
-        }, 100); // Update every 100ms
-
+    
+            downloadedSizeEl.textContent = `${(loaded / 1024 / 1024).toFixed(2)} MB`;
+            totalSizeEl.textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
+            const percentage = total ? (loaded / total) * 100 : 0;
+            importProgressBar.style.width = `${percentage}%`;
+        };
+    
         try {
-            const data = await getAllRecords();
+            const data = await getAllRecords(progressCallback);
             allImportedRecords = data;
             currentDataMode = 'import';
-
-            // Complete the progress bar
-            clearInterval(progressInterval);
-            importProgressBar.style.width = '100%';
+    
             modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records loaded successfully!</p>`;
             
             setTimeout(() => {
                 modeSelectionModal.classList.add('hidden');
-                appContainer.classList.remove('hidden'); // <-- FIX: Show the main app
+                appContainer.classList.remove('hidden');
                 navigateTo('dashboard');
                 updateDashboardStats();
-                // Reset for next time
                 importProgressContainer.classList.add('hidden');
+                importDetailsContainer.classList.add('hidden');
                 importProgressBar.style.width = '0%';
             }, 1500);
-
+    
         } catch (error) {
-            clearInterval(progressInterval);
             importProgressContainer.classList.add('hidden');
+            importDetailsContainer.classList.add('hidden');
             modeLoadingStatus.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
         } finally {
             importModeBtn.disabled = false;

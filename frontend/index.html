@@ -556,6 +556,26 @@
                 <div id="import-progress-container" class="w-full bg-gray-200 rounded-full h-2.5 hidden mb-4">
                 <div id="import-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-linear" style="width: 0%"></div>
             </div>
+             <!-- Details container -->
+            <div id="import-details-container" class="hidden text-sm text-gray-500 mb-4 space-y-2">
+                <div class="flex justify-between">
+                    <span>Downloaded:</span>
+                    <span id="downloaded-size">0 MB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Total Size:</span>
+                    <span id="total-size">0 MB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Speed:</span>
+                    <span id="download-speed">0 MB/s</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Time Left:</span>
+                    <span id="time-left">N/A</span>
+                </div>
+            </div>
+
 
             <div class="space-y-4">
                 <button id="import-mode-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
