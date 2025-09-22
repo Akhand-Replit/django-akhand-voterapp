@@ -8,6 +8,9 @@ from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
 from django.core.cache import cache
+# --- MODIFIED: Import StreamingHttpResponse and json for streaming data ---
+from django.http import StreamingHttpResponse
+import json
 
 
 from .models import Batch, Record, FamilyRelationship , CallHistory, Event
@@ -209,29 +212,43 @@ class CallHistoryViewSet(viewsets.ModelViewSet):
             return CallHistory.objects.filter(record_id=record_id)
         return CallHistory.objects.none()
 
+# --- MODIFIED: This view now streams the data to fix performance issues. ---
 class AllRecordsView(APIView):
     """
-    Handles fetching and caching of the entire dataset for "Import Mode".
+    Handles fetching of the entire dataset for "Import Mode" by streaming the response.
+    This avoids high memory usage and long wait times on the server.
     """
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, format=None):
-        cache_key = 'all_voter_data'
+    def stream_records_as_json(self):
+        """
+        A generator function that yields serialized record data as JSON chunks.
+        """
+        queryset = Record.objects.select_related('batch').all().order_by('id').iterator()
         
-        # Try to get the data from the cache first
-        cached_data = cache.get(cache_key)
+        yield '['
         
-        if cached_data:
-            print("Serving all records from CACHE.")
-            return Response(cached_data)
+        first = True
+        for record in queryset:
+            if not first:
+                yield ','
             
-        # If not in cache, fetch from DB, serialize, cache it, and return it
-        print("No cache found. Fetching all records from DATABASE.")
-        queryset = Record.objects.select_related('batch').all().order_by('id')
-        serializer = RecordSerializer(queryset, many=True)
+            serializer = RecordSerializer(record)
+            yield json.dumps(serializer.data)
+            first = False
+
+        yield ']'
+
+    def get(self, request, format=None):
+        # Caching is removed here because it's not straightforward to cache a streaming response.
+        # The performance gain from streaming directly from the DB is much more significant
+        # for solving the initial load time problem.
+        print("Streaming all records from DATABASE.")
         
-        # Store in cache forever (or until invalidated)
-        cache.set(cache_key, serializer.data, timeout=None)
-        
-        print(f"Cached {len(serializer.data)} records.")
-        return Response(serializer.data)
+        response = StreamingHttpResponse(
+            self.stream_records_as_json(),
+            content_type="application/json"
+        )
+        # Note: Content-Length is not set because the size is unknown until the stream completes.
+        # The frontend will handle this.
+        return response

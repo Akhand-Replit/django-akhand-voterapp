@@ -232,12 +232,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- MODIFIED: This function now implements the real-time progress UI ---
     async function handleImportMode() {
-        modeLoadingStatus.innerHTML = 'Starting import...';
+        modeLoadingStatus.innerHTML = 'Starting data import...';
         modeLoadingStatus.classList.remove('hidden');
         importProgressContainer.classList.remove('hidden');
         importDetailsContainer.classList.remove('hidden');
         importProgressBar.style.width = '0%';
+        downloadedSizeEl.textContent = '0 MB';
+        totalSizeEl.textContent = '... MB';
+        downloadSpeedEl.textContent = '... MB/s';
+        timeLeftEl.textContent = '... s';
+
         importModeBtn.disabled = true;
         directModeBtn.disabled = true;
     
@@ -249,11 +255,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const timeDiff = (now - lastTime) / 1000; // in seconds
             const loadedDiff = loaded - lastLoaded;
     
-            if (timeDiff > 0.5 || loaded === total) { // Update speed every 0.5s or at the end
+            // Update speed and time left roughly every 500ms
+            if (timeDiff > 0.5 || loaded === total) { 
                 const speed = loadedDiff / timeDiff; // bytes per second
                 downloadSpeedEl.textContent = `${(speed / 1024 / 1024).toFixed(2)} MB/s`;
                 
-                if (speed > 0) {
+                if (speed > 0 && total > 0) {
                     const timeLeft = (total - loaded) / speed; // in seconds
                     timeLeftEl.textContent = `${Math.round(timeLeft)}s`;
                 } else {
@@ -265,15 +272,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
     
             downloadedSizeEl.textContent = `${(loaded / 1024 / 1024).toFixed(2)} MB`;
-            totalSizeEl.textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
-            const percentage = total ? (loaded / total) * 100 : 0;
-            importProgressBar.style.width = `${percentage}%`;
+            if(total > 0){
+                totalSizeEl.textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
+                const percentage = total ? (loaded / total) * 100 : 0;
+                importProgressBar.style.width = `${percentage}%`;
+            } else {
+                // If total size is unknown, just show the downloaded amount
+                totalSizeEl.textContent = `(Unknown total)`;
+                importProgressBar.style.width = `100%`; // Can show an indeterminate bar instead
+                importProgressBar.classList.add('bg-blue-400');
+            }
         };
     
         try {
             const data = await getAllRecords(progressCallback);
             allImportedRecords = data;
             currentDataMode = 'import';
+            
+            // Final progress update
+            downloadedSizeEl.textContent = `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`;
+            totalSizeEl.textContent = `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`;
+            importProgressBar.style.width = '100%';
+            downloadSpeedEl.textContent = 'Done!';
+            timeLeftEl.textContent = '0s';
     
             modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records loaded successfully!</p>`;
             
