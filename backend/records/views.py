@@ -31,7 +31,8 @@ class EventViewSet(viewsets.ModelViewSet):
         Returns a list of records associated with a specific event.
         """
         event = self.get_object()
-        records = event.records.all().select_related('batch')
+        # FIX: Added ordering to prevent pagination warnings
+        records = event.records.all().select_related('batch').order_by('id')
         
         # Paginate the results
         page = self.paginate_queryset(records)
@@ -56,7 +57,8 @@ class BatchViewSet(viewsets.ModelViewSet):
 
 
 class RecordViewSet(viewsets.ModelViewSet):
-    queryset = Record.objects.all()
+    # FIX: Added default ordering to prevent pagination warnings.
+    queryset = Record.objects.all().order_by('id')
     serializer_class = RecordSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend] 
@@ -180,7 +182,8 @@ class RecalculateAgesView(APIView):
         return Response({"message": f"Successfully recalculated and updated the age for {updated_count} records."})
 
 class FamilyRelationshipViewSet(viewsets.ModelViewSet):
-    queryset = FamilyRelationship.objects.all()
+    # FIX: Added default ordering to prevent pagination warnings.
+    queryset = FamilyRelationship.objects.all().order_by('id')
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -191,7 +194,8 @@ class FamilyRelationshipViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         person_id = self.request.query_params.get('person_id')
         if person_id:
-            return FamilyRelationship.objects.filter(person_id=person_id).select_related('relative')
+            # FIX: Added ordering to prevent pagination warnings.
+            return FamilyRelationship.objects.filter(person_id=person_id).select_related('relative').order_by('id')
         return FamilyRelationship.objects.none()
 
 class CallHistoryViewSet(viewsets.ModelViewSet):
@@ -223,7 +227,7 @@ class AllRecordsView(APIView):
             
         # If not in cache, fetch from DB, serialize, cache it, and return it
         print("No cache found. Fetching all records from DATABASE.")
-        queryset = Record.objects.select_related('batch').all()
+        queryset = Record.objects.select_related('batch').all().order_by('id')
         serializer = RecordSerializer(queryset, many=True)
         
         # Store in cache forever (or until invalidated)
