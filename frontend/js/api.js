@@ -124,7 +124,21 @@ async function updateRecord(recordId, recordData) {
     return response.json();
 }
 
-// --- NEW: API FUNCTION TO ASSIGN EVENTS ---
+async function deleteRecordApi(recordId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/records/${recordId}/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Token ${token}` },
+    });
+
+    if (response.status !== 204) {
+        throw new Error('Failed to delete record from the server.');
+    }
+}
+
+
 async function assignEventsToRecord(recordId, eventIds) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -144,7 +158,6 @@ async function assignEventsToRecord(recordId, eventIds) {
     }
     return response.json();
 }
-
 
 async function getRelationshipStats() {
     const token = localStorage.getItem('authToken');
@@ -185,10 +198,11 @@ async function recalculateAllAges() {
     return response.json();
 }
 
-async function getFamilyTree(personId) {
+async function getFamilyTree(personId, url = null) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/family-relationships/?person_id=${personId}`, {
+    const targetUrl = url || `${API_BASE_URL}/api/family-relationships/?person_id=${personId}`;
+    const response = await fetch(targetUrl, {
         headers: { 'Authorization': `Token ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch family tree.');
@@ -213,7 +227,8 @@ async function addFamilyMember(personId, relativeId, relationshipType) {
     });
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to add family member.');
+        const errorMessage = Object.values(errorData).flat().join(' ');
+        throw new Error(errorMessage || 'Failed to add family member.');
     }
     return response.json();
 }
@@ -229,11 +244,11 @@ async function removeFamilyMember(relationshipId) {
     if (!response.ok) throw new Error('Failed to remove family member.');
 }
 
-
-async function getCallHistory(recordId) {
+async function getCallHistory(recordId, url = null) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/call-history/?record_id=${recordId}`, {
+    const targetUrl = url || `${API_BASE_URL}/api/call-history/?record_id=${recordId}`;
+    const response = await fetch(targetUrl, {
         headers: { 'Authorization': `Token ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch call history.');
@@ -314,7 +329,6 @@ async function getRecordsForEvent(eventId, url = null) {
     return response.json();
 }
 
-// --- MODIFIED: This function now reads the streamed response and calls a progress callback ---
 async function getAllRecords(progressCallback) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -328,10 +342,6 @@ async function getAllRecords(progressCallback) {
     }
 
     const reader = response.body.getReader();
-    // Since the backend is streaming, it might not send a Content-Length header.
-    // We will estimate the total size if the header is not present.
-    // A more robust solution for unknown content length involves more complex progress indicators.
-    // For this case, we'll try to use it if available.
     const contentLength = +response.headers.get('Content-Length');
     let receivedLength = 0;
     const chunks = [];
@@ -344,8 +354,7 @@ async function getAllRecords(progressCallback) {
         chunks.push(value);
         receivedLength += value.length;
         if (progressCallback) {
-            // Pass both received and the (possibly estimated) total length
-            progressCallback(receivedLength, contentLength || receivedLength); // If total is unknown, show progress against what's loaded
+            progressCallback(receivedLength, contentLength || receivedLength);
         }
     }
 
@@ -358,4 +367,25 @@ async function getAllRecords(progressCallback) {
 
     const result = new TextDecoder("utf-8").decode(chunksAll);
     return JSON.parse(result);
+}
+
+// --- NEW: API FUNCTION TO SYNC DATA ---
+async function syncData(payload) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/sync-data/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to sync data.');
+    }
+    return response.json();
 }
