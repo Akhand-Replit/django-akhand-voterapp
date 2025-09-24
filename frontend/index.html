@@ -11,6 +11,7 @@
         #sidebar {
             transition: transform 0.3s ease-in-out;
         }
+        /* Style for the family manager modal tabs */
         .family-tab-button.active {
             border-bottom-color: #3b82f6;
             color: #3b82f6;
@@ -72,15 +73,7 @@
                         <li><a href="#" id="nav-callhistory" class="nav-link">Call History</a></li>
                     </ul>
                 </nav>
-                <div class="p-4 border-t border-gray-700 space-y-4">
-                    <!-- NEW: Sync Data Button Container -->
-                    <div class="hidden"> <!-- Hidden by default, shown via JS -->
-                        <button id="sync-data-button" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition relative">
-                            Sync Data
-                            <span id="unsynced-changes-count" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-                        </button>
-                        <div id="sync-status" class="text-xs text-center mt-2"></div>
-                    </div>
+                <div class="p-4 border-t border-gray-700">
                     <button id="logout-button" class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Logout</button>
                 </div>
             </aside>
@@ -128,7 +121,7 @@
                         </form>
                     </div>
                     <div id="search-results" class="space-y-4"></div>
-                    <div id="search-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                    <div id="search-pagination" class="mt-6 flex justify-between space-x-2"></div>
                 </section>
                 
                 <!-- Add Record Page -->
@@ -151,7 +144,7 @@
                             </div>
                             <button type="submit" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">Save Record</button>
                         </form>
-                        <p id="add-record-success" class="mt-4 text-green-600 text-center"></p>
+                        <p id="add-record-success" class="mt-4 text-green-600"></p>
                     </div>
                 </section>
 
@@ -192,12 +185,12 @@
                         </div>
                     </div>
                     <div id="alldata-table-container" class="bg-white p-2 rounded-lg shadow-md overflow-x-auto"></div>
-                    <div id="alldata-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                    <div id="alldata-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     <div id="alldata-status" class="mt-4"></div>
                 </section>
 
-                <!-- Other pages remain the same -->
-                 <section id="events-page" class="hidden">
+                <!-- Event Management Page -->
+                <section id="events-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Event Management</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-8">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">Add & Manage Events</h3>
@@ -223,9 +216,11 @@
                              <button id="filter-by-event-button" class="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition mt-5">Filter Records</button>
                         </div>
                         <div id="event-filter-results" class="mt-6 space-y-4"></div>
-                         <div id="event-filter-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                         <div id="event-filter-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     </div>
                 </section>
+
+                <!-- Relationships Page -->
                 <section id="relationships-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Relationship Management</h2>
                     <div class="border-b border-gray-200">
@@ -238,9 +233,11 @@
                     </div>
                     <div class="bg-white p-4 rounded-lg shadow-md mt-4">
                         <div id="relationships-content"></div>
-                        <div id="relationships-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                        <div id="relationships-pagination" class="mt-6 flex justify-between space-x-2"></div>
                     </div>
                 </section>
+
+                <!-- Analysis Page -->
                 <section id="analysis-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Data Analysis</h2>
                     <div id="analysis-content" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -255,6 +252,8 @@
                         </div>
                     </div>
                 </section>
+                
+                <!-- Age Management Page -->
                 <section id="age-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Age Management & Analysis</h2>
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -268,8 +267,10 @@
                         <canvas id="age-management-chart-container"></canvas>
                    </div>
                 </section>
+                <!-- Family Tree Page -->
                 <section id="familytree-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Family Tree Management</h2>
+                    
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-2">Step 1: Select a Person to Manage</h3>
                         <div class="mb-4">
@@ -278,16 +279,19 @@
                         </div>
                         <div id="family-main-search-results" class="space-y-2"></div>
                     </div>
+
                     <div id="family-management-section" class="hidden">
                         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                             <h3 class="text-xl font-bold text-gray-800 mb-2">Selected Person</h3>
                             <div id="family-selected-person-details"></div>
                         </div>
+
                         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                              <h3 class="text-xl font-bold text-gray-800 mb-2">Current Family Members</h3>
                              <div id="family-current-relatives" class="space-y-2"></div>
-                             <div id="family-tree-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                             <div id="family-tree-pagination" class="mt-6 flex justify-between space-x-2"></div>
                         </div>
+                        
                         <div class="bg-white p-6 rounded-lg shadow-md">
                             <h3 class="text-xl font-bold text-gray-800 mb-2">Step 2: Add a Relative</h3>
                             <div class="mb-4">
@@ -295,6 +299,7 @@
                                 <input type="text" id="family-relative-search" class="w-full px-4 py-2 border rounded-lg" placeholder="Search by name or voter no...">
                             </div>
                             <div id="family-relative-search-results" class="space-y-2 mb-4"></div>
+                            
                             <div id="family-add-form" class="hidden">
                                 <div class="mb-4">
                                     <label for="relationship-type" class="block text-gray-700 mb-2">Relationship Type</label>
@@ -306,8 +311,10 @@
                         </div>
                     </div>
                 </section>
+                <!-- Call History Page -->
                 <section id="callhistory-page" class="hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-6">Call History Management</h2>
+
                     <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-2">Search for a Person</h3>
                         <div class="mb-4">
@@ -316,16 +323,19 @@
                         </div>
                         <div id="callhistory-search-results" class="space-y-2"></div>
                     </div>
+
                     <div id="callhistory-management-section" class="hidden">
                         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                             <h3 class="text-xl font-bold text-gray-800 mb-2">Call Logs For:</h3>
                             <div id="callhistory-selected-person"></div>
                         </div>
+
                         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
                              <h3 class="text-xl font-bold text-gray-800 mb-2">Existing Call History</h3>
                              <div id="callhistory-logs-container" class="space-y-4"></div>
-                             <div id="callhistory-pagination" class="mt-6 flex justify-center items-center space-x-4"></div>
+                             <div id="callhistory-pagination" class="mt-6 flex justify-between space-x-2"></div>
                         </div>
+                        
                         <div class="bg-white p-6 rounded-lg shadow-md">
                             <h3 class="text-xl font-bold text-gray-800 mb-2">Add New Call Log</h3>
                             <form id="add-call-log-form">
@@ -442,65 +452,139 @@
                                          <option value="Connected">Connected</option>
                                      </select>
                                  </div>
+                                <!-- NEW: Event Assignment in Modal -->
                                 <div id="modal-events-container" class="md:col-span-3">
                                     <label class="block text-sm font-medium text-gray-700">Assign to Events</label>
                                     <div id="edit-events-checkboxes" class="mt-2 space-y-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                                        <!-- Checkboxes will be populated here -->
                                     </div>
                                 </div>
                             </div>
                         </form>
 
+                        <!-- NEW: Family Management Section -->
                         <div class="mt-8 border-t pt-4">
                             <h4 class="text-lg font-medium text-gray-800 mb-2">Family Members</h4>
                             <div id="current-family-members-list" class="space-y-2 max-h-40 overflow-y-auto p-2 border rounded-md bg-gray-50">
+                                <!-- Family members will be loaded here -->
                             </div>
                             <button id="open-family-manager-btn" class="mt-3 w-full text-sm bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
                                 Add / Manage Family
                             </button>
                         </div>
                     </div>
-                    <div class="items-center px-4 py-3 border-t mt-4 flex justify-between">
-                        <button id="modal-delete-button" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
-                            Delete Record
+                    <div class="items-center px-4 py-3 border-t mt-4 text-right">
+                        <button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                            Cancel
                         </button>
-                        <div>
-                            <button id="modal-close-button" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                                Cancel
-                            </button>
-                            <button id="modal-save-button" class="ml-4 px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
-                                Save Changes
-                            </button>
-                        </div>
+                        <button id="modal-save-button" class="ml-4 px-4 py-2 bg-green-500 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300">
+                            Save Changes
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- NEW: Family Manager Modal -->
+        <div id="family-manager-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[60]">
+             <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                 <div class="flex justify-between items-center border-b pb-3 mb-4">
+                     <h3 class="text-xl leading-6 font-medium text-gray-900">Add Family Member</h3>
+                     <button id="family-modal-close-button-x" class="text-gray-400 hover:text-gray-600">
+                         <span class="text-2xl">&times;</span>
+                     </button>
+                 </div>
+                 
+                 <!-- Tabs -->
+                 <div class="border-b border-gray-200">
+                     <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                         <button id="family-tab-existing" class="family-tab-button active py-3 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                             Add Existing Member
+                         </button>
+                         <button id="family-tab-new" class="family-tab-button py-3 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                             Add New Member
+                         </button>
+                     </nav>
+                 </div>
+        
+                 <!-- Add Existing Member Tab Content -->
+                 <div id="add-existing-member-tab" class="mt-4">
+                     <label for="family-member-search-input" class="block text-sm font-medium text-gray-700">Search for an existing person</label>
+                     <input type="text" id="family-member-search-input" placeholder="Search by Voter No. or Name..." class="mt-1 w-full px-3 py-2 border rounded-md">
+                     <div id="family-member-search-results" class="mt-2 max-h-40 overflow-y-auto border rounded-md"></div>
+                     
+                     <div id="selected-family-member-details" class="mt-4 p-3 bg-blue-50 rounded-md hidden"></div>
+                     
+                     <div id="add-existing-member-form" class="mt-4 space-y-3 hidden">
+                        <label for="existing-member-relationship" class="block text-sm font-medium text-gray-700">Relationship to this person</label>
+                        <input type="text" id="existing-member-relationship" placeholder="e.g., Father, Son, Spouse" class="w-full px-3 py-2 border rounded-md">
+                        <button id="add-existing-family-member-btn" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Add Family Member</button>
+                        <p id="add-existing-status" class="text-sm text-center mt-2"></p>
+                     </div>
+                 </div>
+        
+                 <!-- Add New Member Tab Content -->
+                 <div id="add-new-member-tab" class="hidden mt-4">
+                     <form id="add-new-family-member-form">
+                         <p class="text-sm text-gray-600 mb-4">Add a new person who is not in the database.</p>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <input type="text" id="new-member-name" placeholder="Name (Required)" class="px-4 py-2 border rounded-lg" required>
+                             <input type="text" id="new-member-voter-no" placeholder="Voter No." class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-father" placeholder="Father's Name" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-mother" placeholder="Mother's Name" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-phone" placeholder="Phone Number" class="px-4 py-2 border rounded-lg">
+                             <input type="text" id="new-member-relationship" placeholder="Relationship (Required)" class="px-4 py-2 border rounded-lg" required>
+                         </div>
+                         <button type="submit" class="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Save and Add as Family Member</button>
+                     </form>
+                     <p id="add-new-status" class="text-sm text-center mt-2"></p>
+                 </div>
+             </div>
+        </div>
+
     </div>
 
-    <!-- Mode Selection Modal -->
+        <!-- Mode Selection Modal -->
     <div id="mode-selection-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm mx-4 text-center">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Choose Data Mode</h2>
             <p class="text-gray-600 mb-6">Select how you want to interact with the data.</p>
-            <div id="mode-loading-status" class="hidden text-blue-600 mb-4"></div>
+            <div id="mode-loading-status" class="hidden text-blue-600 mb-4">
+                <!-- Loading message will go here -->
+            </div>
+                <!-- NEW: Progress Bar -->
                 <div id="import-progress-container" class="w-full bg-gray-200 rounded-full h-2.5 hidden mb-4">
                 <div id="import-progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500 ease-linear" style="width: 0%"></div>
             </div>
+             <!-- Details container -->
             <div id="import-details-container" class="hidden text-sm text-gray-500 mb-4 space-y-2">
-                <div class="flex justify-between"><span>Downloaded:</span><span id="downloaded-size">0 MB</span></div>
-                <div class="flex justify-between"><span>Total Size:</span><span id="total-size">0 MB</span></div>
-                <div class="flex justify-between"><span>Speed:</span><span id="download-speed">0 MB/s</span></div>
-                <div class="flex justify-between"><span>Time Left:</span><span id="time-left">N/A</span></div>
+                <div class="flex justify-between">
+                    <span>Downloaded:</span>
+                    <span id="downloaded-size">0 MB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Total Size:</span>
+                    <span id="total-size">0 MB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Speed:</span>
+                    <span id="download-speed">0 MB/s</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Time Left:</span>
+                    <span id="time-left">N/A</span>
+                </div>
             </div>
+
 
             <div class="space-y-4">
                 <button id="import-mode-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
                     Import Mode
-                    <span class="block text-xs font-normal opacity-75">Load all data for fastest search (offline editing)</span>
+                    <span class="block text-xs font-normal opacity-75">Load all data now for fastest search</span>
                 </button>
                 <button id="direct-mode-btn" class="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 transition duration-200 font-semibold">
                     Direct Mode
-                    <span class="block text-xs font-normal opacity-75">Connect directly to the live database</span>
+                    <span class="block text-xs font-normal opacity-75">Connect directly to the database</span>
                 </button>
             </div>
         </div>
@@ -508,7 +592,5 @@
 
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
-    <!-- Keep additional.js if it contains other functionalities you need, otherwise it can be merged or removed -->
-    <!-- <script src="js/additional.js"></script> -->
 </body>
 </html>
