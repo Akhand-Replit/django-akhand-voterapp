@@ -124,7 +124,28 @@ async function updateRecord(recordId, recordData) {
     return response.json();
 }
 
-// --- NEW: API FUNCTION TO ASSIGN EVENTS ---
+// --- NEW: API FUNCTION TO SYNC MULTIPLE CHANGES ---
+async function syncOfflineChanges(changes) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+
+    const response = await fetch(`${API_BASE_URL}/api/sync-records/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Token ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(changes),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to sync changes.');
+    }
+    return response.json();
+}
+
+
 async function assignEventsToRecord(recordId, eventIds) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -314,7 +335,6 @@ async function getRecordsForEvent(eventId, url = null) {
     return response.json();
 }
 
-// --- MODIFIED: This function now reads the streamed response and calls a progress callback ---
 async function getAllRecords(progressCallback) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -328,10 +348,6 @@ async function getAllRecords(progressCallback) {
     }
 
     const reader = response.body.getReader();
-    // Since the backend is streaming, it might not send a Content-Length header.
-    // We will estimate the total size if the header is not present.
-    // A more robust solution for unknown content length involves more complex progress indicators.
-    // For this case, we'll try to use it if available.
     const contentLength = +response.headers.get('Content-Length');
     let receivedLength = 0;
     const chunks = [];
@@ -344,8 +360,7 @@ async function getAllRecords(progressCallback) {
         chunks.push(value);
         receivedLength += value.length;
         if (progressCallback) {
-            // Pass both received and the (possibly estimated) total length
-            progressCallback(receivedLength, contentLength || receivedLength); // If total is unknown, show progress against what's loaded
+            progressCallback(receivedLength, contentLength || receivedLength);
         }
     }
 

@@ -17,6 +17,10 @@
             color: #3b82f6;
             font-weight: 600;
         }
+        /* Added styles for sync status */
+        #sync-status {
+            transition: opacity 0.5s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -73,6 +77,11 @@
                         <li><a href="#" id="nav-callhistory" class="nav-link">Call History</a></li>
                     </ul>
                 </nav>
+                 <!-- Sync Button and Status -->
+                <div id="sync-container" class="p-4 border-t border-gray-700 hidden">
+                    <button id="sync-data-button" class="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition mb-2">Sync Data</button>
+                    <div id="sync-status" class="text-center text-sm text-gray-400"></div>
+                </div>
                 <div class="p-4 border-t border-gray-700">
                     <button id="logout-button" class="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">Logout</button>
                 </div>

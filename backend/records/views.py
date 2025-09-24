@@ -8,10 +8,8 @@ from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
 from django.core.cache import cache
-# --- MODIFIED: Import StreamingHttpResponse and json for streaming data ---
 from django.http import StreamingHttpResponse
 import json
-
 
 from .models import Batch, Record, FamilyRelationship , CallHistory, Event
 from .serializers import (
@@ -19,7 +17,6 @@ from .serializers import (
     CreateFamilyRelationshipSerializer , CallHistorySerializer, EventSerializer
 )
 
-# --- NEW EVENT VIEWSET ---
 class EventViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows events to be viewed or edited.
@@ -34,10 +31,8 @@ class EventViewSet(viewsets.ModelViewSet):
         Returns a list of records associated with a specific event.
         """
         event = self.get_object()
-        # FIX: Added ordering to prevent pagination warnings
         records = event.records.all().select_related('batch').order_by('id')
         
-        # Paginate the results
         page = self.paginate_queryset(records)
         if page is not None:
             serializer = RecordSerializer(page, many=True)
@@ -60,7 +55,6 @@ class BatchViewSet(viewsets.ModelViewSet):
 
 
 class RecordViewSet(viewsets.ModelViewSet):
-    # FIX: Added default ordering to prevent pagination warnings.
     queryset = Record.objects.all().order_by('id')
     serializer_class = RecordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -80,7 +74,6 @@ class RecordViewSet(viewsets.ModelViewSet):
         'phone_number': ['icontains'],
     }
 
-    # --- NEW ACTION TO ASSIGN EVENTS TO A RECORD ---
     @action(detail=True, methods=['post'], url_path='assign-events')
     def assign_events(self, request, pk=None):
         record = self.get_object()
@@ -92,7 +85,6 @@ class RecordViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # This will set the record's events to exactly the list provided
         events = Event.objects.filter(id__in=event_ids)
         record.events.set(events)
         
@@ -185,7 +177,6 @@ class RecalculateAgesView(APIView):
         return Response({"message": f"Successfully recalculated and updated the age for {updated_count} records."})
 
 class FamilyRelationshipViewSet(viewsets.ModelViewSet):
-    # FIX: Added default ordering to prevent pagination warnings.
     queryset = FamilyRelationship.objects.all().order_by('id')
     permission_classes = [permissions.IsAuthenticated]
 
@@ -197,7 +188,6 @@ class FamilyRelationshipViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         person_id = self.request.query_params.get('person_id')
         if person_id:
-            # FIX: Added ordering to prevent pagination warnings.
             return FamilyRelationship.objects.filter(person_id=person_id).select_related('relative').order_by('id')
         return FamilyRelationship.objects.none()
 
@@ -212,43 +202,125 @@ class CallHistoryViewSet(viewsets.ModelViewSet):
             return CallHistory.objects.filter(record_id=record_id)
         return CallHistory.objects.none()
 
-# --- MODIFIED: This view now streams the data to fix performance issues. ---
 class AllRecordsView(APIView):
     """
     Handles fetching of the entire dataset for "Import Mode" by streaming the response.
-    This avoids high memory usage and long wait times on the server.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def stream_records_as_json(self):
-        """
-        A generator function that yields serialized record data as JSON chunks.
-        """
-        queryset = Record.objects.select_related('batch').all().order_by('id').iterator()
-        
+        # FIX: Added chunk_size to the iterator to resolve the prefetch_related error.
+        queryset = Record.objects.select_related('batch').prefetch_related('events').all().order_by('id').iterator(chunk_size=2000)
         yield '['
-        
         first = True
         for record in queryset:
             if not first:
                 yield ','
-            
             serializer = RecordSerializer(record)
             yield json.dumps(serializer.data)
             first = False
-
         yield ']'
 
     def get(self, request, format=None):
-        # Caching is removed here because it's not straightforward to cache a streaming response.
-        # The performance gain from streaming directly from the DB is much more significant
-        # for solving the initial load time problem.
         print("Streaming all records from DATABASE.")
-        
         response = StreamingHttpResponse(
             self.stream_records_as_json(),
             content_type="application/json"
         )
-        # Note: Content-Length is not set because the size is unknown until the stream completes.
-        # The frontend will handle this.
         return response
+
+class SyncRecordsView(APIView):
+    """
+    Receives a batch of offline changes and applies them to the database.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        changes = request.data
+        
+        # 1. Process updated records
+        updated_records_data = changes.get('updatedRecords', {})
+        records_to_update = []
+        if updated_records_data:
+            record_ids_to_update = [rid for rid in updated_records_data.keys() if not str(rid).startswith('new_')]
+            # Fetch all records to be updated in a single query
+            records_map = {str(r.id): r for r in Record.objects.filter(id__in=record_ids_to_update)}
+            
+            update_fields = set()
+            for record_id, data in updated_records_data.items():
+                if record_id in records_map:
+                    record = records_map[record_id]
+                    for key, value in data.items():
+                        setattr(record, key, value)
+                        update_fields.add(key)
+                    records_to_update.append(record)
+            
+            if records_to_update:
+                Record.objects.bulk_update(records_to_update, fields=list(update_fields))
+
+
+        # 2. Process new records and map temporary IDs to real IDs
+        new_records_data = changes.get('newRecords', [])
+        temp_id_map = {}
+        records_to_create = []
+        for new_record_data in new_records_data:
+            temp_id = new_record_data.pop('id')
+            # Create instance but don't save yet, to bulk_create later
+            record_instance = Record(**new_record_data)
+            records_to_create.append(record_instance)
+            # We'll map the temp_id to the instance for now
+            temp_id_map[temp_id] = record_instance
+        
+        if records_to_create:
+            # Create all new records in one go
+            created_records = Record.objects.bulk_create(records_to_create)
+            # Now, update the temp_id_map to have the real, saved DB IDs
+            for i, record_instance in enumerate(records_to_create):
+                # Find the temp_id that corresponds to this instance
+                temp_id = next(key for key, val in temp_id_map.items() if val == record_instance)
+                temp_id_map[temp_id] = created_records[i].id
+
+
+        # 3. Process event assignments
+        event_assignments = changes.get('eventAssignments', {})
+        for record_id, event_ids in event_assignments.items():
+            real_record_id = temp_id_map.get(record_id, record_id)
+            if real_record_id and not isinstance(real_record_id, Record): # Ensure it's not an unsaved instance
+                try:
+                    record = Record.objects.get(id=real_record_id)
+                    events = Event.objects.filter(id__in=event_ids)
+                    record.events.set(events)
+                except Record.DoesNotExist:
+                    print(f"Skipping event assignment for non-existent record ID: {real_record_id}")
+
+
+        # 4. Process new family relationships
+        new_family_rels = changes.get('newFamilyRels', [])
+        rels_to_create = []
+        for rel in new_family_rels:
+            person_id = temp_id_map.get(rel['person'], rel['person'])
+            relative_id = temp_id_map.get(rel['relative'], rel['relative'])
+            if person_id and relative_id:
+                 rels_to_create.append(
+                     FamilyRelationship(person_id=person_id, relative_id=relative_id, relationship_type=rel['relationship_type'])
+                 )
+        if rels_to_create:
+            FamilyRelationship.objects.bulk_create(rels_to_create, ignore_conflicts=True)
+
+
+        # 5. Process new call logs
+        new_call_logs = changes.get('newCallLogs', [])
+        logs_to_create = []
+        for log in new_call_logs:
+            record_id = temp_id_map.get(log['record'], log['record'])
+            if record_id:
+                logs_to_create.append(
+                    CallHistory(record_id=record_id, call_date=log['call_date'], summary=log['summary'])
+                )
+        if logs_to_create:
+            CallHistory.objects.bulk_create(logs_to_create)
+
+
+        return Response({"detail": "Sync successful"}, status=status.HTTP_200_OK)
+
