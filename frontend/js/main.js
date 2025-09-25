@@ -514,20 +514,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusContainer = document.querySelector('.active')?.id === 'alldata-page' ? allDataStatus : searchResultsContainer;
         
         if (currentDataMode === 'import') {
+            // Step 1: Prepare changes for syncing.
+            // Use the original updatedData (without event_names) for syncing record fields.
+            offlineChanges.updatedRecords[recordId] = updatedData; 
+            // Handle event assignments separately for syncing.
+            offlineChanges.eventAssignments[recordId] = selectedEventIds;
+
+            // Step 2: Update the local data for immediate UI feedback.
             const recordIndex = allImportedRecords.findIndex(r => r.id == recordId);
             if (recordIndex > -1) {
-                // Update event_names locally for immediate UI feedback
+                // Update the plain fields first.
+                const updatedLocalRecord = { ...allImportedRecords[recordIndex], ...updatedData };
+
+                // Now, separately update the event_names for the UI.
                 const selectedEventNames = selectedEventIds.map(id => {
                     const event = allImportedEvents.find(e => e.id == id);
                     return event ? event.name : '';
                 }).filter(name => name);
-                updatedData.event_names = selectedEventNames;
+                updatedLocalRecord.event_names = selectedEventNames;
 
-                allImportedRecords[recordIndex] = { ...allImportedRecords[recordIndex], ...updatedData };
+                // Replace the old record with the fully updated one.
+                allImportedRecords[recordIndex] = updatedLocalRecord;
             }
-
-            offlineChanges.updatedRecords[recordId] = updatedData;
-            offlineChanges.eventAssignments[recordId] = selectedEventIds;
             
             statusContainer.innerHTML = `<p class="text-green-600">Record ${recordId} updated locally. Sync to save changes.</p>`;
             editRecordModal.classList.add('hidden');
