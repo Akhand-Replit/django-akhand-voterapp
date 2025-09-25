@@ -375,3 +375,25 @@ async function getAllRecords(progressCallback) {
     const result = new TextDecoder("utf-8").decode(chunksAll);
     return JSON.parse(result);
 }
+
+// --- NEW: Function to get all events for offline mode ---
+async function getAllEvents() {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    const response = await fetch(`${API_BASE_URL}/api/all-events/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch all events.');
+    return response.json();
+}
+
+// --- NEW: Function to get all relationships for offline mode ---
+async function getAllFamilyRelationships() {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    const response = await fetch(`${API_BASE_URL}/api/all-family-relationships/`, {
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch all family relationships.');
+    return response.json();
+}

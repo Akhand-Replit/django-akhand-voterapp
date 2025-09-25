@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global State ---
     let currentDataMode = 'direct'; // 'direct' or 'import'
     let allImportedRecords = [];
+    let allImportedEvents = []; // --- NEW: For offline events ---
+    let allImportedFamilyRels = []; // --- NEW: For offline relationships ---
     let originalRecords = []; // Used for modals, holds the currently displayed page of records
     let offlineChanges = {
         updatedRecords: {},
@@ -221,6 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetState() {
         currentDataMode = 'direct';
         allImportedRecords = [];
+        allImportedEvents = [];
+        allImportedFamilyRels = [];
         offlineChanges = { updatedRecords: {}, newRecords: [], newFamilyRels: [], deletedFamilyRels: [], newCallLogs: [], eventAssignments: {} };
         if (syncContainer) syncContainer.classList.add('hidden');
         if (syncStatus) syncStatus.textContent = '';
@@ -229,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleNavigation(e) { e.preventDefault(); const pageName = e.target.id.split('-')[1]; navigateTo(pageName); if (sidebar && sidebar.classList.contains('md:relative')) { if(!sidebar.classList.contains('-translate-x-full')) sidebar.classList.add('-translate-x-full'); } }
 
     async function handleImportMode() {
-        modeLoadingStatus.innerHTML = 'Starting data import...';
+        modeLoadingStatus.innerHTML = 'Starting data import... This may take a few moments.';
         modeLoadingStatus.classList.remove('hidden');
         importProgressContainer.classList.remove('hidden');
         importDetailsContainer.classList.remove('hidden');
@@ -273,9 +277,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     
         try {
-            const data = await getAllRecords(progressCallback);
-            allImportedRecords = data;
+            modeLoadingStatus.innerHTML = 'Downloading Records...';
+            const recordsPromise = getAllRecords(progressCallback);
+            
+            modeLoadingStatus.innerHTML = 'Downloading Events & Relationships...';
+            const eventsPromise = getAllEvents();
+            const relsPromise = getAllFamilyRelationships();
+            
+            const [recordsData, eventsData, relsData] = await Promise.all([recordsPromise, eventsPromise, relsPromise]);
+
+            allImportedRecords = recordsData;
+            allImportedEvents = eventsData; // --- NEW: Store events ---
+            allImportedFamilyRels = relsData; // --- NEW: Store relationships ---
             currentDataMode = 'import';
+            
             syncContainer.classList.remove('hidden');
             updateSyncStatus();
             
@@ -284,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             importProgressBar.style.width = '100%';
             downloadSpeedEl.textContent = 'Done!';
             timeLeftEl.textContent = '0s';
-            modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records loaded successfully!</p>`;
+            modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records, ${allImportedEvents.length} events, and ${allImportedFamilyRels.length} relationships loaded!</p>`;
             
             setTimeout(() => {
                 modeSelectionModal.classList.add('hidden');
@@ -294,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 importProgressContainer.classList.add('hidden');
                 importDetailsContainer.classList.add('hidden');
                 importProgressBar.style.width = '0%';
-            }, 1500);
+            }, 2000);
     
         } catch (error) {
             importProgressContainer.classList.add('hidden');
@@ -419,7 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function openEditModal(recordId) {
-        // --- FIX: Use the correct data source based on the current mode ---
         const sourceData = currentDataMode === 'import' ? allImportedRecords : originalRecords;
         const record = sourceData.find(r => r.id == recordId);
         
@@ -447,22 +461,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('edit-description').value = record.description || '';
         document.getElementById('edit-political-status').value = record.political_status || '';
         document.getElementById('edit-relationship-status').value = record.relationship_status || 'Regular';
+        
         const eventsContainer = document.getElementById('edit-events-checkboxes');
         eventsContainer.innerHTML = 'Loading events...';
+
         try {
-            const allEventsResponse = await getEvents();
-            const allEvents = allEventsResponse.results;
+            // --- NEW: Offline/Online logic for events ---
+            const allEvents = (currentDataMode === 'import') ? allImportedEvents : (await getEvents()).results;
+            
             eventsContainer.innerHTML = '';
-            allEvents.forEach(event => {
-                const isChecked = record.event_names && record.event_names.includes(event.name);
-                const checkboxDiv = document.createElement('div');
-                checkboxDiv.className = 'flex items-center';
-                checkboxDiv.innerHTML = `<input id="event-${event.id}" name="events" type="checkbox" value="${event.id}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" ${isChecked ? 'checked' : ''}><label for="event-${event.id}" class="ml-2 block text-sm text-gray-900">${event.name}</label>`;
-                eventsContainer.appendChild(checkboxDiv);
-            });
+            if (!allEvents || allEvents.length === 0) {
+                 eventsContainer.innerHTML = '<p class="text-gray-500">No events available.</p>';
+            } else {
+                allEvents.forEach(event => {
+                    const isChecked = record.event_names && record.event_names.includes(event.name);
+                    const checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'flex items-center';
+                    checkboxDiv.innerHTML = `<input id="event-${event.id}" name="events" type="checkbox" value="${event.id}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded" ${isChecked ? 'checked' : ''}><label for="event-${event.id}" class="ml-2 block text-sm text-gray-900">${event.name}</label>`;
+                    eventsContainer.appendChild(checkboxDiv);
+                });
+            }
         } catch (error) {
             eventsContainer.innerHTML = '<p class="text-red-500">Could not load events.</p>';
         }
+
         loadCurrentFamilyMembers(record.id);
         editRecordModal.classList.remove('hidden');
     }
@@ -494,15 +516,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentDataMode === 'import') {
             const recordIndex = allImportedRecords.findIndex(r => r.id == recordId);
             if (recordIndex > -1) {
+                // Update event_names locally for immediate UI feedback
+                const selectedEventNames = selectedEventIds.map(id => {
+                    const event = allImportedEvents.find(e => e.id == id);
+                    return event ? event.name : '';
+                }).filter(name => name);
+                updatedData.event_names = selectedEventNames;
+
                 allImportedRecords[recordIndex] = { ...allImportedRecords[recordIndex], ...updatedData };
             }
+
             offlineChanges.updatedRecords[recordId] = updatedData;
             offlineChanges.eventAssignments[recordId] = selectedEventIds;
+            
             statusContainer.innerHTML = `<p class="text-green-600">Record ${recordId} updated locally. Sync to save changes.</p>`;
             editRecordModal.classList.add('hidden');
             updateSyncStatus();
+            
             if (document.querySelector('.active')?.id === 'alldata-page') {
                 handleAllDataFileSelect();
+            } else if (document.querySelector('.active')?.id === 'search-page') {
+                // Re-run the search to show the updated data
+                handleSearch(null);
             }
         } else {
             statusContainer.innerHTML = `<p class="text-blue-600">Saving record ${recordId}...</p>`;
@@ -542,19 +577,38 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadCurrentFamilyMembers(recordId) {
         currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">Loading family members...</p>';
         try {
-            const data = await getFamilyTree(recordId);
-            currentFamilyMembersList.innerHTML = '';
-            if (data.results && data.results.length > 0) {
-                data.results.forEach(rel => {
-                    const memberDiv = document.createElement('div');
-                    memberDiv.className = 'text-sm p-1.5 flex justify-between items-center';
-                    memberDiv.innerHTML = `<div><span class="font-semibold text-gray-700">${rel.relationship_type}:</span><span class="text-gray-600 ml-2">${rel.relative.naam}</span></div><button data-id="${rel.id}" class="remove-relative-btn text-red-400 hover:text-red-600 text-xs">Remove</button>`;
-                    currentFamilyMembersList.appendChild(memberDiv);
-                });
-                document.querySelectorAll('.remove-relative-btn').forEach(btn => btn.addEventListener('click', handleRemoveRelationship));
+            if (currentDataMode === 'import') {
+                const relationships = allImportedFamilyRels.filter(rel => rel.person == recordId);
+                currentFamilyMembersList.innerHTML = '';
+                if (relationships.length > 0) {
+                    relationships.forEach(rel => {
+                        const relativeRecord = allImportedRecords.find(rec => rec.id == rel.relative);
+                        if (relativeRecord) {
+                            const memberDiv = document.createElement('div');
+                            memberDiv.className = 'text-sm p-1.5 flex justify-between items-center';
+                            memberDiv.innerHTML = `<div><span class="font-semibold text-gray-700">${rel.relationship_type}:</span><span class="text-gray-600 ml-2">${relativeRecord.naam}</span></div><button data-id="${rel.id}" class="remove-relative-btn text-red-400 hover:text-red-600 text-xs">Remove</button>`;
+                            currentFamilyMembersList.appendChild(memberDiv);
+                        }
+                    });
+                } else {
+                    currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">No family members added yet.</p>';
+                }
             } else {
-                currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">No family members added yet.</p>';
+                const data = await getFamilyTree(recordId);
+                currentFamilyMembersList.innerHTML = '';
+                if (data.results && data.results.length > 0) {
+                    data.results.forEach(rel => {
+                        const memberDiv = document.createElement('div');
+                        memberDiv.className = 'text-sm p-1.5 flex justify-between items-center';
+                        memberDiv.innerHTML = `<div><span class="font-semibold text-gray-700">${rel.relationship_type}:</span><span class="text-gray-600 ml-2">${rel.relative.naam}</span></div><button data-id="${rel.id}" class="remove-relative-btn text-red-400 hover:text-red-600 text-xs">Remove</button>`;
+                        currentFamilyMembersList.appendChild(memberDiv);
+                    });
+                } else {
+                    currentFamilyMembersList.innerHTML = '<p class="text-gray-500 text-sm">No family members added yet.</p>';
+                }
             }
+             document.querySelectorAll('.remove-relative-btn').forEach(btn => btn.addEventListener('click', handleRemoveRelationship));
+
         } catch (error) {
             currentFamilyMembersList.innerHTML = `<p class="text-red-500 text-sm">Error loading family: ${error.message}</p>`;
         }
@@ -564,10 +618,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = familyMemberSearchInput.value.trim();
         familyMemberSearchResults.innerHTML = '';
         if (query.length < 2) return;
+        
+        // --- NEW: Offline/Online logic for searching family members ---
+        const sourceData = (currentDataMode === 'import') ? allImportedRecords : null;
+        
         try {
-            const data = await searchRecords({ naam__icontains: query, page_size: 5 });
-            if (data.results && data.results.length > 0) {
-                data.results.forEach(record => {
+            let results = [];
+            if (sourceData) {
+                const lowerCaseQuery = query.toLowerCase();
+                results = sourceData.filter(r => 
+                    (r.naam && r.naam.toLowerCase().includes(lowerCaseQuery)) ||
+                    (r.voter_no && r.voter_no.includes(query))
+                ).slice(0, 5);
+            } else {
+                const data = await searchRecords({ naam__icontains: query, page_size: 5 });
+                results = data.results || [];
+            }
+            
+            if (results.length > 0) {
+                results.forEach(record => {
                     if (record.id === currentRecordForFamily.id) return;
                     const resultBtn = document.createElement('button');
                     resultBtn.className = 'block w-full text-left p-2 hover:bg-gray-100';
@@ -590,7 +659,14 @@ document.addEventListener('DOMContentLoaded', () => {
         addExistingStatus.className = 'text-blue-500 text-sm text-center mt-2';
         try {
             if (currentDataMode === 'import') {
-                offlineChanges.newFamilyRels.push({ person: currentRecordForFamily.id, relative: selectedRelativeForFamily.id, relationship_type: relationshipType });
+                const newRel = {
+                    id: `new_rel_${Date.now()}`, // Temporary ID for local removal
+                    person: currentRecordForFamily.id, 
+                    relative: selectedRelativeForFamily.id, 
+                    relationship_type: relationshipType 
+                };
+                offlineChanges.newFamilyRels.push(newRel);
+                allImportedFamilyRels.push(newRel); // Add to local data for immediate UI update
                 addExistingStatus.textContent = 'Added locally. Sync to save.';
                 updateSyncStatus();
             } else {
@@ -616,8 +692,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentDataMode === 'import') {
                 const tempId = `new_${Date.now()}`;
                 newRecordData.id = tempId;
+                allImportedRecords.push(newRecordData); // Add to local records
                 offlineChanges.newRecords.push(newRecordData);
-                offlineChanges.newFamilyRels.push({ person: currentRecordForFamily.id, relative: tempId, relationship_type: relationship });
+
+                const newRel = { 
+                    id: `new_rel_${Date.now()}`,
+                    person: currentRecordForFamily.id, 
+                    relative: tempId, 
+                    relationship_type: relationship 
+                };
+                allImportedFamilyRels.push(newRel); // Add to local relationships
+                offlineChanges.newFamilyRels.push(newRel);
+                
                 addNewStatus.textContent = 'Added locally. Sync to save.';
                 updateSyncStatus();
             } else {
@@ -648,7 +734,40 @@ document.addEventListener('DOMContentLoaded', () => {
     function selectRelative(relative) { selectedRelativeId = relative.id; familyRelativeSearchResults.innerHTML = `<p class="p-2 bg-green-100 rounded">Selected: ${relative.naam}</p>`; familyRelativeSearchInput.value = relative.naam; familyAddForm.classList.remove('hidden'); }
     async function loadFamilyTree(personId, url = null) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">Loading relatives...</p>'; try { const data = await getFamilyTree(personId, url); familyCurrentRelatives.innerHTML = ''; if (data.results.length === 0) { familyCurrentRelatives.innerHTML = '<p class="text-gray-500">No relatives added yet.</p>'; } else { data.results.forEach(rel => { const relDiv = document.createElement('div'); relDiv.className = 'flex justify-between items-center p-2 border-b'; relDiv.innerHTML = ` <div> <span class="font-bold">${rel.relationship_type}:</span> <span>${rel.relative.naam} (Voter No: ${rel.relative.voter_no || 'N/A'})</span> </div> <button data-id="${rel.id}" class="remove-relative-btn text-red-500 hover:text-red-700">Remove</button> `; familyCurrentRelatives.appendChild(relDiv); }); document.querySelectorAll('.remove-relative-btn').forEach(btn => { btn.addEventListener('click', handleRemoveRelationship); }); } displayPaginationControls(familyTreePagination, data.previous, data.next, (nextUrl) => loadFamilyTree(personId, nextUrl)); } catch (error) { familyCurrentRelatives.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddRelationship() { const relationshipType = relationshipTypeInput.value.trim(); if (!selectedPersonId || !selectedRelativeId || !relationshipType) { familyAddStatus.textContent = 'Please select a main person, a relative, and enter a relationship type.'; return; } familyAddStatus.textContent = 'Adding...'; try { await addFamilyMember(selectedPersonId, selectedRelativeId, relationshipType); familyAddStatus.textContent = 'Relationship added successfully!'; familyRelativeSearchInput.value = ''; relationshipTypeInput.value = ''; selectedRelativeId = null; familyRelativeSearchResults.innerHTML = ''; familyAddForm.classList.add('hidden'); loadFamilyTree(selectedPersonId); } catch (error) { familyAddStatus.textContent = `Error: ${error.message}`; } }
-    async function handleRemoveRelationship(event) { const relationshipId = event.target.dataset.id; if (!confirm('Are you sure you want to remove this relationship?')) return; try { await removeFamilyMember(relationshipId); if (!familyManagerModal.classList.contains('hidden')) { loadFamilyTree(selectedPersonId); } else if (!editRecordModal.classList.contains('hidden')) { loadCurrentFamilyMembers(currentRecordForFamily.id); } } catch (error) { alert(`Failed to remove relationship: ${error.message}`); } }
+    
+    async function handleRemoveRelationship(event) {
+        const relationshipId = event.target.dataset.id;
+        if (!confirm('Are you sure you want to remove this relationship?')) return;
+        
+        try {
+            if (currentDataMode === 'import') {
+                // Find index to remove from local data
+                const relIndex = allImportedFamilyRels.findIndex(r => r.id == relationshipId);
+                if (relIndex > -1) {
+                    allImportedFamilyRels.splice(relIndex, 1);
+                }
+                // Add to changes if it's not a newly created (unsynced) one
+                if (!String(relationshipId).startsWith('new_rel_')) {
+                    offlineChanges.deletedFamilyRels.push(relationshipId);
+                }
+                updateSyncStatus();
+            } else {
+                await removeFamilyMember(relationshipId);
+            }
+            
+            // Refresh the relevant UI list
+            if (!familyManagerModal.classList.contains('hidden')) {
+                loadCurrentFamilyMembers(currentRecordForFamily.id);
+            } else if (!editRecordModal.classList.contains('hidden')) {
+                 loadCurrentFamilyMembers(currentRecordForFamily.id);
+            } else if (pages.familytree.classList.contains('active')) {
+                 loadFamilyTree(selectedPersonId);
+            }
+        } catch (error) {
+            alert(`Failed to remove relationship: ${error.message}`);
+        }
+    }
+
     
     async function handleCallHistorySearch(event) { const query = event.target.value.trim(); if (!query) { callHistorySearchResults.innerHTML = ''; return; } 
         if (currentDataMode === 'direct') {
@@ -664,11 +783,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadCallHistory(recordId, url = null) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">Loading history...</p>'; try { const data = await getCallHistory(recordId, url); callHistoryLogsContainer.innerHTML = ''; if (data.results.length === 0) { callHistoryLogsContainer.innerHTML = '<p class="text-gray-500">No call history found for this person.</p>'; } else { data.results.forEach(log => { const logDiv = document.createElement('div'); logDiv.className = 'p-3 border rounded-lg bg-gray-50'; logDiv.innerHTML = ` <p class="font-bold text-gray-700">${log.call_date}</p> <p class="text-gray-600 mt-1">${log.summary}</p> `; callHistoryLogsContainer.appendChild(logDiv); }); } displayPaginationControls(callHistoryPagination, data.previous, data.next, (nextUrl) => loadCallHistory(recordId, nextUrl)); } catch (error) { callHistoryLogsContainer.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
     async function handleAddCallLog(event) { event.preventDefault(); const callDate = document.getElementById('call-date').value; const summary = document.getElementById('call-summary').value.trim(); if (!callDate || !summary) { callLogStatus.textContent = 'Please fill out all fields.'; return; } callLogStatus.textContent = 'Saving...'; try { if (currentDataMode === 'import') { offlineChanges.newCallLogs.push({ record: selectedPersonForCallHistory.id, call_date: callDate, summary }); callLogStatus.textContent = 'Log added locally. Sync to save.'; updateSyncStatus(); } else { await addCallLog(selectedPersonForCallHistory.id, callDate, summary); callLogStatus.textContent = 'Log saved successfully!'; } addCallLogForm.reset(); loadCallHistory(selectedPersonForCallHistory.id); } catch (error) { callLogStatus.textContent = `Error: ${error.message}`; } }
 
-    async function initializeEventsPage() { try { const eventsResponse = await getEvents(); populateEventList(eventsResponse.results); populateEventFilterDropdown(eventsResponse.results); } catch (error) { if(existingEventsList) existingEventsList.innerHTML = `<p class="text-red-500">${error.message}</p>`; if(eventFilterSelect) eventFilterSelect.innerHTML = `<option>Error loading events</option>`; } }
+    async function initializeEventsPage() {
+        try {
+            // --- NEW: Offline/Online logic for events page ---
+            const events = (currentDataMode === 'import') ? allImportedEvents : (await getEvents()).results;
+            populateEventList(events);
+            populateEventFilterDropdown(events);
+        } catch (error) {
+            if(existingEventsList) existingEventsList.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+            if(eventFilterSelect) eventFilterSelect.innerHTML = `<option>Error loading events</option>`;
+        }
+    }
 
-    async function handleAddEvent(e) { e.preventDefault(); const eventName = newEventNameInput.value.trim(); if (!eventName) { addEventStatus.textContent = 'Event name cannot be empty.'; addEventStatus.className = 'text-red-500 text-sm'; return; } addEventStatus.textContent = 'Adding...'; addEventStatus.className = 'text-blue-600 text-sm'; try { await addEvent(eventName); addEventStatus.textContent = 'Event added successfully!'; addEventStatus.className = 'text-green-600 text-sm'; addEventForm.reset(); initializeEventsPage(); } catch (error) { addEventStatus.textContent = error.message; addEventStatus.className = 'text-red-500 text-sm'; } }
+    async function handleAddEvent(e) { e.preventDefault(); if(currentDataMode === 'import') { alert("Adding new event categories is disabled in Import Mode. Please sync your data and switch to Direct Mode."); return; } const eventName = newEventNameInput.value.trim(); if (!eventName) { addEventStatus.textContent = 'Event name cannot be empty.'; addEventStatus.className = 'text-red-500 text-sm'; return; } addEventStatus.textContent = 'Adding...'; addEventStatus.className = 'text-blue-600 text-sm'; try { await addEvent(eventName); addEventStatus.textContent = 'Event added successfully!'; addEventStatus.className = 'text-green-600 text-sm'; addEventForm.reset(); initializeEventsPage(); } catch (error) { addEventStatus.textContent = error.message; addEventStatus.className = 'text-red-500 text-sm'; } }
 
-    async function handleDeleteEvent(eventId) { if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) return; try { await deleteEvent(eventId); initializeEventsPage(); } catch (error) { alert(error.message); } }
+    async function handleDeleteEvent(eventId) { if(currentDataMode === 'import') { alert("Deleting events is disabled in Import Mode. Please sync your data and switch to Direct Mode."); return; } if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) return; try { await deleteEvent(eventId); initializeEventsPage(); } catch (error) { alert(error.message); } }
 
     async function handleFilterByEvent(url = null) { const eventId = eventFilterSelect.value; if (!eventId || isNaN(parseInt(eventId))) { eventFilterResults.innerHTML = '<p class="text-gray-600">Please select a valid event to filter.</p>'; return; } eventFilterResults.innerHTML = '<p class="text-gray-500">Loading records...</p>'; try { const data = await getRecordsForEvent(eventId, url); displayEventRecords(data.results); displayPaginationControls(eventFilterPagination, data.previous, data.next, (nextUrl) => handleFilterByEvent(nextUrl)); } catch (error) { eventFilterResults.innerHTML = `<p class="text-red-500">${error.message}</p>`; } }
 
@@ -769,4 +898,3 @@ document.addEventListener('DOMContentLoaded', () => {
     
     init();
 });
-

@@ -4,7 +4,7 @@ from .views import (
     BatchViewSet, RecordViewSet, DashboardStatsView, UploadDataView, 
     RelationshipStatsView, AnalysisStatsView, RecalculateAgesView,
     FamilyRelationshipViewSet, CallHistoryViewSet, EventViewSet,
-    AllRecordsView, SyncRecordsView
+    AllRecordsView, SyncRecordsView, AllEventsView, AllFamilyRelationshipsView
 )
 
 router = DefaultRouter()
@@ -22,6 +22,10 @@ urlpatterns = [
     path('analysis-stats/', AnalysisStatsView.as_view(), name='analysis-stats'),
     path('recalculate-ages/', RecalculateAgesView.as_view(), name='recalculate-ages'),
     path('all-records/', AllRecordsView.as_view(), name='all-records'),
+    # --- NEW: URLs for fetching all data for offline mode ---
+    path('all-events/', AllEventsView.as_view(), name='all-events'),
+    path('all-family-relationships/', AllFamilyRelationshipsView.as_view(), name='all-family-relationships'),
+    # ---------------------------------------------------------
     path('sync-records/', SyncRecordsView.as_view(), name='sync-records'),
     path('', include(router.urls)),
 ]

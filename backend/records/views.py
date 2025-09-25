@@ -209,7 +209,7 @@ class AllRecordsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def stream_records_as_json(self):
-        # FIX: Added chunk_size to the iterator to resolve the prefetch_related error.
+        # Using iterator with chunk_size is good for memory efficiency on the server.
         queryset = Record.objects.select_related('batch').prefetch_related('events').all().order_by('id').iterator(chunk_size=2000)
         yield '['
         first = True
@@ -229,6 +229,32 @@ class AllRecordsView(APIView):
         )
         return response
 
+# --- NEW: View to get all events for offline mode ---
+class AllEventsView(APIView):
+    """
+    Handles fetching of all events for "Import Mode".
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, format=None):
+        events = Event.objects.all().order_by('name')
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data)
+
+# --- NEW: View to get all relationships for offline mode ---
+class AllFamilyRelationshipsView(APIView):
+    """
+    Handles fetching of all family relationships for "Import Mode".
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, format=None):
+        relationships = FamilyRelationship.objects.all()
+        # Use CreateFamilyRelationshipSerializer to get flat person/relative IDs
+        serializer = CreateFamilyRelationshipSerializer(relationships, many=True)
+        return Response(serializer.data)
+
+
 class SyncRecordsView(APIView):
     """
     Receives a batch of offline changes and applies them to the database.
@@ -244,7 +270,6 @@ class SyncRecordsView(APIView):
         records_to_update = []
         if updated_records_data:
             record_ids_to_update = [rid for rid in updated_records_data.keys() if not str(rid).startswith('new_')]
-            # Fetch all records to be updated in a single query
             records_map = {str(r.id): r for r in Record.objects.filter(id__in=record_ids_to_update)}
             
             update_fields = set()
@@ -259,41 +284,33 @@ class SyncRecordsView(APIView):
             if records_to_update:
                 Record.objects.bulk_update(records_to_update, fields=list(update_fields))
 
-
         # 2. Process new records and map temporary IDs to real IDs
         new_records_data = changes.get('newRecords', [])
         temp_id_map = {}
         records_to_create = []
         for new_record_data in new_records_data:
             temp_id = new_record_data.pop('id')
-            # Create instance but don't save yet, to bulk_create later
             record_instance = Record(**new_record_data)
             records_to_create.append(record_instance)
-            # We'll map the temp_id to the instance for now
             temp_id_map[temp_id] = record_instance
         
         if records_to_create:
-            # Create all new records in one go
             created_records = Record.objects.bulk_create(records_to_create)
-            # Now, update the temp_id_map to have the real, saved DB IDs
             for i, record_instance in enumerate(records_to_create):
-                # Find the temp_id that corresponds to this instance
                 temp_id = next(key for key, val in temp_id_map.items() if val == record_instance)
                 temp_id_map[temp_id] = created_records[i].id
-
 
         # 3. Process event assignments
         event_assignments = changes.get('eventAssignments', {})
         for record_id, event_ids in event_assignments.items():
             real_record_id = temp_id_map.get(record_id, record_id)
-            if real_record_id and not isinstance(real_record_id, Record): # Ensure it's not an unsaved instance
+            if real_record_id and not isinstance(real_record_id, Record):
                 try:
                     record = Record.objects.get(id=real_record_id)
                     events = Event.objects.filter(id__in=event_ids)
                     record.events.set(events)
                 except Record.DoesNotExist:
                     print(f"Skipping event assignment for non-existent record ID: {real_record_id}")
-
 
         # 4. Process new family relationships
         new_family_rels = changes.get('newFamilyRels', [])
@@ -308,7 +325,6 @@ class SyncRecordsView(APIView):
         if rels_to_create:
             FamilyRelationship.objects.bulk_create(rels_to_create, ignore_conflicts=True)
 
-
         # 5. Process new call logs
         new_call_logs = changes.get('newCallLogs', [])
         logs_to_create = []
@@ -321,6 +337,12 @@ class SyncRecordsView(APIView):
         if logs_to_create:
             CallHistory.objects.bulk_create(logs_to_create)
 
+        # --- NEW: 6. Process deleted family relationships ---
+        deleted_rel_ids = changes.get('deletedFamilyRels', [])
+        if deleted_rel_ids:
+            # We only expect numeric IDs here, not temporary ones
+            valid_ids = [int(rid) for rid in deleted_rel_ids if str(rid).isnumeric()]
+            if valid_ids:
+                FamilyRelationship.objects.filter(id__in=valid_ids).delete()
 
         return Response({"detail": "Sync successful"}, status=status.HTTP_200_OK)
-
