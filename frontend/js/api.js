@@ -74,13 +74,14 @@ async function addRecord(recordData) {
     return response.json();
 }
 
-async function uploadData(batchName, file) {
+async function uploadData(batchName, file, gender) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
 
     const formData = new FormData();
     formData.append('batch_name', batchName);
     formData.append('file', file);
+    formData.append('gender', gender);
 
     const response = await fetch(`${API_BASE_URL}/api/upload-data/`, {
         method: 'POST',
