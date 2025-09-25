@@ -247,32 +247,37 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastLoaded = 0;
         let lastTime = Date.now();
     
+        // FIX: Improved progress callback to handle streams without Content-Length
         const progressCallback = (loaded, total) => {
             const now = Date.now();
-            const timeDiff = (now - lastTime) / 1000; 
+            const timeDiff = (now - lastTime) / 1000;
             const loadedDiff = loaded - lastLoaded;
     
-            if (timeDiff > 0.5 || loaded === total) { 
+            if (timeDiff > 0.5 || (total && loaded === total)) {
                 const speed = loadedDiff / timeDiff;
                 downloadSpeedEl.textContent = `${(speed / 1024 / 1024).toFixed(2)} MB/s`;
                 if (speed > 0 && total > 0) {
                     const timeLeft = (total - loaded) / speed;
                     timeLeftEl.textContent = `${Math.round(timeLeft)}s`;
                 } else {
-                    timeLeftEl.textContent = 'N/A';
+                    timeLeftEl.textContent = 'Calculating...';
                 }
                 lastTime = now;
                 lastLoaded = loaded;
             }
+            
             downloadedSizeEl.textContent = `${(loaded / 1024 / 1024).toFixed(2)} MB`;
-            if(total > 0){
+    
+            if (total > 0) {
                 totalSizeEl.textContent = `${(total / 1024 / 1024).toFixed(2)} MB`;
-                const percentage = total ? (loaded / total) * 100 : 0;
+                const percentage = (loaded / total) * 100;
                 importProgressBar.style.width = `${percentage}%`;
+                importProgressBar.classList.remove('bg-blue-400', 'animate-pulse');
             } else {
-                totalSizeEl.textContent = `(Unknown total)`;
+                // When total is unknown, show downloaded amount and use an indeterminate progress bar
+                totalSizeEl.textContent = `(Streaming)`;
                 importProgressBar.style.width = `100%`;
-                importProgressBar.classList.add('bg-blue-400');
+                importProgressBar.classList.add('bg-blue-400', 'animate-pulse'); // Indeterminate state
             }
         };
     
@@ -287,16 +292,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const [recordsData, eventsData, relsData] = await Promise.all([recordsPromise, eventsPromise, relsPromise]);
 
             allImportedRecords = recordsData;
-            allImportedEvents = eventsData; // --- NEW: Store events ---
-            allImportedFamilyRels = relsData; // --- NEW: Store relationships ---
+            allImportedEvents = eventsData;
+            allImportedFamilyRels = relsData;
             currentDataMode = 'import';
             
             syncContainer.classList.remove('hidden');
             updateSyncStatus();
             
-            downloadedSizeEl.textContent = `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`;
-            totalSizeEl.textContent = `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`;
+            // Final UI update
+            const finalSize = (lastLoaded / 1024 / 1024).toFixed(2);
+            downloadedSizeEl.textContent = `${finalSize} MB`;
+            totalSizeEl.textContent = `${finalSize} MB`;
             importProgressBar.style.width = '100%';
+            importProgressBar.classList.remove('animate-pulse');
             downloadSpeedEl.textContent = 'Done!';
             timeLeftEl.textContent = '0s';
             modeLoadingStatus.innerHTML = `<p class="text-green-600">${allImportedRecords.length} records, ${allImportedEvents.length} events, and ${allImportedFamilyRels.length} relationships loaded!</p>`;

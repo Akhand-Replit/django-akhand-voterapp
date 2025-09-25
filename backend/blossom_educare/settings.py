@@ -14,8 +14,8 @@ from pathlib import Path
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-# FIX: Adjusted BASE_DIR to point to the project root, one level above 'backend'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# FIX: Adjusted BASE_DIR to point to the 'backend' directory.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -62,7 +62,8 @@ ROOT_URLCONF = 'blossom_educare.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'frontend')],
+        # FIX: Correct path to the frontend directory
+        'DIRS': [os.path.join(BASE_DIR.parent, 'frontend')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -91,17 +92,25 @@ DATABASES = {
     }
 }
 
-# Caching Configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        # Replace with your actual Redis credentials and host
-        "LOCATION": "redis://default:rSTgDqiD93Od0eRyOtuitCmGdLOhsvPB9HdbABHdFT7UXFD922KZgOZ1gvFtFV3n@69.62.124.103:8767/0",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+# FIX: Changed database to use the provided db.sqlite3 file
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Caching Configuration (Optional, can be commented out if Redis is not set up)
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         # Replace with your actual Redis credentials and host
+#         "LOCATION": "redis://default:rSTgDqiD93Od0eRyOtuitCmGdLOhsvPB9HdbABHdFT7UXFD922KZgOZ1gvFtFV3n@69.62.124.103:8767/0",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#         }
+#     }
+# }
 
 
 # Password validation
@@ -139,8 +148,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+# FIX: Correct path to the frontend directory for static files
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'frontend'),
+    os.path.join(BASE_DIR.parent, 'frontend'),
 ]
 
 # Default primary key field type
@@ -150,10 +160,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True # Good for initial setup
-# More specific setting to allow requests from local files
-# CORS_ALLOWED_ORIGINS = [
-#     "null",
-# ]
 
 
 # Django REST Framework configuration
@@ -165,7 +171,7 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [ # Add this section
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
-        # --- NEW: Add pagination settings ---
+    # --- NEW: Add pagination settings ---
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50 # You can adjust this number
 }

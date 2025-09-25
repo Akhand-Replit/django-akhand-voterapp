@@ -349,7 +349,10 @@ async function getAllRecords(progressCallback) {
     }
 
     const reader = response.body.getReader();
-    const contentLength = +response.headers.get('Content-Length');
+    // FIX: Gracefully handle missing Content-Length header
+    const contentLength = response.headers.has('Content-Length') 
+        ? +response.headers.get('Content-Length') 
+        : 0;
     let receivedLength = 0;
     const chunks = [];
     
@@ -361,7 +364,7 @@ async function getAllRecords(progressCallback) {
         chunks.push(value);
         receivedLength += value.length;
         if (progressCallback) {
-            progressCallback(receivedLength, contentLength || receivedLength);
+            progressCallback(receivedLength, contentLength);
         }
     }
 
