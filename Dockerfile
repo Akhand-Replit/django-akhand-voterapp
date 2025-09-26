@@ -20,8 +20,8 @@ COPY . .
 RUN python backend/manage.py collectstatic --noinput
 
 # Expose port that Gunicorn will run on
-EXPOSE 2267
+EXPOSE 8000
 
 # Command to run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:2267", "blossom_educare.wsgi"]
-
+# Use --chdir to specify the directory of the Django project
+CMD ["gunicorn", "--chdir", "backend", "--bind", "0.0.0.0:8000", "blossom_educare.wsgi"]
