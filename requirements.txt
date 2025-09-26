@@ -1,8 +1,8 @@
-Django
-djangorestframework
-django-cors-headers
-django-filter
-psycopg2-binary
-gunicorn
-django-redis
-whitenoise
+Django~=5.0
+djangorestframework~=3.15.1
+django-cors-headers~=4.3.1
+django-filter~=24.2
+psycopg2-binary~=2.9.9
+gunicorn~=22.0.0
+django-redis~=5.4.0
+whitenoise[brotli]~=6.6.0
