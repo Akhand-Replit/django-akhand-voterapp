@@ -22,7 +22,8 @@ RUN python backend/manage.py collectstatic --noinput
 RUN python backend/manage.py migrate
 
 # Expose port
-EXPOSE 8000
+EXPOSE 2267
 
 # Run server
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "blossom_educare.wsgi"]
+CMD ["gunicorn", "--bind", "0.0.0.0:2267", "blossom_educare.wsgi"]
+
