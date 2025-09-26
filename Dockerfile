@@ -16,14 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Collect static files
+# This is run during the build process to include static files in the image
 RUN python backend/manage.py collectstatic --noinput
 
-# Run migrations
-RUN python backend/manage.py migrate
-
-# Expose port
+# Expose port that Gunicorn will run on
 EXPOSE 2267
 
-# Run server
+# Command to run the application
 CMD ["gunicorn", "--bind", "0.0.0.0:2267", "blossom_educare.wsgi"]
 
