@@ -61,7 +61,8 @@ ROOT_URLCONF = 'blossom_educare.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'frontend')],
+        # Correctly point to the 'frontend' directory, which is a sibling of BASE_DIR
+        'DIRS': [os.path.join(BASE_DIR.parent, 'frontend')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -139,7 +140,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'frontend'),
+    # Correctly point to the 'frontend' directory for static assets
+    os.path.join(BASE_DIR.parent, 'frontend'),
 ]
 
 
@@ -172,3 +174,4 @@ REST_FRAMEWORK = {
 
 # CSRF Trusted Origins for production
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
+
