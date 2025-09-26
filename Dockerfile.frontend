@@ -1,5 +1,4 @@
-# Stage 1: Build the static assets (if you had a build step)
-# In your case, we just copy the files.
+# Stage 1: Prepare static files
 FROM alpine:latest as builder
 WORKDIR /app
 COPY frontend/ .
