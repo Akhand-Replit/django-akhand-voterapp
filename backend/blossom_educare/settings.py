@@ -177,4 +177,3 @@ REST_FRAMEWORK = {
 
 # CSRF Trusted Origins for production
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1,https://dakhandvoter.akhandapps.com').split(',')
-
