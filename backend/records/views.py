@@ -13,7 +13,7 @@ import json
 
 from .models import Batch, Record, FamilyRelationship , CallHistory, Event
 from .serializers import (
-    BatchSerializer, RecordSerializer, FamilyRelationshipSerializer, 
+    BatchSerializer, RecordSerializer, FamilyRelationshipSerializer,
     CreateFamilyRelationshipSerializer , CallHistorySerializer, EventSerializer
 )
 
@@ -32,7 +32,7 @@ class EventViewSet(viewsets.ModelViewSet):
         """
         event = self.get_object()
         records = event.records.all().select_related('batch').order_by('id')
-        
+
         page = self.paginate_queryset(records)
         if page is not None:
             serializer = RecordSerializer(page, many=True)
@@ -59,9 +59,9 @@ class BatchViewSet(viewsets.ModelViewSet):
         file_name = request.data.get('file_name')
         if not file_name:
             return Response({"error": "file_name is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         count, _ = Record.objects.filter(batch=batch, file_name=file_name).delete()
-        
+
         return Response({"message": f"Successfully deleted {count} records from file '{file_name}' in batch '{batch.name}'."}, status=status.HTTP_200_OK)
 
 
@@ -69,8 +69,8 @@ class RecordViewSet(viewsets.ModelViewSet):
     queryset = Record.objects.all().order_by('id')
     serializer_class = RecordSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend] 
-    
+    filter_backends = [DjangoFilterBackend]
+
     filterset_fields = {
         'naam': ['icontains'],
         'voter_no': ['exact'],
@@ -95,10 +95,10 @@ class RecordViewSet(viewsets.ModelViewSet):
                 {'error': 'event_ids must be a list of integers.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         events = Event.objects.filter(id__in=event_ids)
         record.events.set(events)
-        
+
         serializer = self.get_serializer(record)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -138,7 +138,7 @@ class UploadDataView(APIView):
             try:
                 content = file_obj.read().decode('utf-8')
                 parsed_records = parse_voter_text_file(content)
-                
+
                 if not parsed_records:
                     continue
 
@@ -211,10 +211,12 @@ class FamilyRelationshipViewSet(viewsets.ModelViewSet):
         return FamilyRelationshipSerializer
 
     def get_queryset(self):
+        # This is the corrected logic
+        queryset = super().get_queryset() # Start with the base queryset
         person_id = self.request.query_params.get('person_id')
-        if person_id:
-            return FamilyRelationship.objects.filter(person_id=person_id).select_related('relative').order_by('id')
-        return FamilyRelationship.objects.none()
+        if person_id and self.action == 'list':
+            return queryset.filter(person_id=person_id).select_related('relative')
+        return queryset
 
 class CallHistoryViewSet(viewsets.ModelViewSet):
     queryset = CallHistory.objects.all()
@@ -289,14 +291,14 @@ class SyncRecordsView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         changes = request.data
-        
+
         # 1. Process updated records
         updated_records_data = changes.get('updatedRecords', {})
         records_to_update = []
         if updated_records_data:
             record_ids_to_update = [rid for rid in updated_records_data.keys() if not str(rid).startswith('new_')]
             records_map = {str(r.id): r for r in Record.objects.filter(id__in=record_ids_to_update)}
-            
+
             update_fields = set()
             for record_id, data in updated_records_data.items():
                 if record_id in records_map:
@@ -305,7 +307,7 @@ class SyncRecordsView(APIView):
                         setattr(record, key, value)
                         update_fields.add(key)
                     records_to_update.append(record)
-            
+
             if records_to_update:
                 Record.objects.bulk_update(records_to_update, fields=list(update_fields))
 
@@ -318,7 +320,7 @@ class SyncRecordsView(APIView):
             record_instance = Record(**new_record_data)
             records_to_create.append(record_instance)
             temp_id_map[temp_id] = record_instance
-        
+
         if records_to_create:
             created_records = Record.objects.bulk_create(records_to_create)
             for i, record_instance in enumerate(records_to_create):
@@ -338,7 +340,7 @@ class SyncRecordsView(APIView):
                     print(f"Skipping event assignment for non-existent record ID: {real_record_id}")
 
         # 4. Process new family relationships
-        new_family_rels = changes.get('newFamilyRels', [])
+        new_family_rels = changes.get('newFamilyRls', [])
         rels_to_create = []
         for rel in new_family_rels:
             person_id = temp_id_map.get(rel['person'], rel['person'])
