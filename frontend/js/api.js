@@ -1,4 +1,4 @@
-// FIX: Use a relative URL for portability between development and production.
+// Use a relative URL for portability (like v1). Nginx will handle routing.
 const API_BASE_URL = '';
 
 async function loginUser(username, password) {
@@ -31,6 +31,7 @@ async function searchRecords(searchParamsOrUrl) {
 
     let url;
     if (typeof searchParamsOrUrl === 'string') {
+        // This is a full URL provided by the pagination controls, so use it directly.
         url = searchParamsOrUrl;
     } else {
         const query = new URLSearchParams(searchParamsOrUrl).toString();
@@ -130,28 +131,6 @@ async function updateRecord(recordId, recordData) {
     return response.json();
 }
 
-// --- NEW: API FUNCTION TO SYNC MULTIPLE CHANGES ---
-async function syncOfflineChanges(changes) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/sync-records/`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Token ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(changes),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to sync changes.');
-    }
-    return response.json();
-}
-
-
 async function assignEventsToRecord(recordId, eventIds) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
@@ -184,11 +163,16 @@ async function getRelationshipStats() {
     return response.json();
 }
 
-async function getAnalysisStats() {
+async function getAnalysisStats(batchId = null) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
 
-    const response = await fetch(`${API_BASE_URL}/api/analysis-stats/`, {
+    let url = `${API_BASE_URL}/api/analysis-stats/`;
+    if (batchId) {
+        url += `?batch_id=${batchId}`;
+    }
+
+    const response = await fetch(url, {
         headers: { 'Authorization': `Token ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch analysis stats.');
@@ -331,7 +315,7 @@ async function deleteEvent(eventId) {
 async function getRecordsForEvent(eventId, url = null) {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Authentication token not found.');
-    
+
     const targetUrl = url || `${API_BASE_URL}/api/events/${eventId}/records/`;
 
     const response = await fetch(targetUrl, {
@@ -341,69 +325,7 @@ async function getRecordsForEvent(eventId, url = null) {
     return response.json();
 }
 
-async function getAllRecords(progressCallback) {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-
-    const response = await fetch(`${API_BASE_URL}/api/all-records/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to fetch all records.');
-    }
-
-    const reader = response.body.getReader();
-    const contentLength = +response.headers.get('Content-Length');
-    let receivedLength = 0;
-    const chunks = [];
-    
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            break;
-        }
-        chunks.push(value);
-        receivedLength += value.length;
-        if (progressCallback) {
-            progressCallback(receivedLength, contentLength || receivedLength);
-        }
-    }
-
-    const chunksAll = new Uint8Array(receivedLength);
-    let position = 0;
-    for (const chunk of chunks) {
-        chunksAll.set(chunk, position);
-        position += chunk.length;
-    }
-
-    const result = new TextDecoder("utf-8").decode(chunksAll);
-    return JSON.parse(result);
-}
-
-// --- NEW: Function to get all events for offline mode ---
-async function getAllEvents() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/all-events/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch all events.');
-    return response.json();
-}
-
-// --- NEW: Function to get all relationships for offline mode ---
-async function getAllFamilyRelationships() {
-    const token = localStorage.getItem('authToken');
-    if (!token) throw new Error('Authentication token not found.');
-    const response = await fetch(`${API_BASE_URL}/api/all-family-relationships/`, {
-        headers: { 'Authorization': `Token ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to fetch all family relationships.');
-    return response.json();
-}
-
-// --- NEW: Data Management API Functions ---
+// --- Data Management API Functions ---
 
 async function deleteFileData(batchId, fileName) {
     const token = localStorage.getItem('authToken');
@@ -445,4 +367,35 @@ async function deleteAllData() {
         throw new Error(errorData.error || 'Failed to delete all data.');
     }
     return response.json();
+}
+
+// --- NEW API FUNCTIONS FOR DATA TABLES ---
+// Fetch all records for an event (no pagination needed for client-side table/CSV)
+async function getRecordsForEventDataTable(eventId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+    // Modify the URL to remove pagination if your API supports it,
+    // or handle pagination client-side if necessary.
+    // Assuming the endpoint returns all records for simplicity here.
+    const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/records/?page_size=10000`, { // Request a large page size
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch records for the event table.');
+    // Assuming the non-paginated or large-page response still has a 'results' key
+    const data = await response.json();
+    return data.results || data; // Adapt based on your API response structure
+}
+
+// Fetch all records for a batch (no pagination needed for client-side table/CSV)
+async function getRecordsForBatchDataTable(batchId) {
+    const token = localStorage.getItem('authToken');
+    if (!token) throw new Error('Authentication token not found.');
+     // Assuming the endpoint returns all records for simplicity here.
+    const response = await fetch(`${API_BASE_URL}/api/batches/${batchId}/records/?page_size=10000`, { // Request a large page size
+        headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch records for the batch table.');
+    // Assuming the non-paginated or large-page response still has a 'results' key
+    const data = await response.json();
+    return data.results || data; // Adapt based on your API response structure
 }

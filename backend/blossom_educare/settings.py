@@ -21,11 +21,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# Use environment variable like in v1
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-jy4=9zww0@ybx^xy(+fvx@rdyth!ean7w*_c$(bip*(2fqh=3e')
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# Use environment variable like in v1, default to False for production
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
+# Use environment variable like in v1, ensure your VPS domain/IP is included
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,dakhandvoter.akhandapps.com').split(',')
 
 
@@ -48,6 +51,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Enable WhiteNoise for production static file serving (like v1)
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,7 +66,7 @@ ROOT_URLCONF = 'blossom_educare.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # Correctly point to the 'frontend' directory, which is a sibling of BASE_DIR
+        # Correctly point to the 'frontend' directory.
         'DIRS': [os.path.join(BASE_DIR.parent, 'frontend')],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -81,22 +85,24 @@ WSGI_APPLICATION = 'blossom_educare.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Use environment variables like in v1
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'postgres'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'password'),
-        'HOST': os.environ.get('DB_HOST', 'db'),
+        'USER': os.environ.get('DB_USER', 'postgres'), # Ensure this matches your v1 setup user if different
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'password'), # Ensure this matches your v1 setup password
+        'HOST': os.environ.get('DB_HOST', 'db'), # Use 'localhost' or the specific host if DB is not in Docker
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
 # Caching Configuration
+# Use environment variables like in v1
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
+        "LOCATION": os.environ.get('REDIS_URL', 'redis://default:rSTgDqiD93Od0eRyOtuitCmGdLOhsvPB9HdbABHdFT7UXFD922KZgOZ1gvFtFV3n@69.62.124.103:8767/0'), # Use 'redis://localhost:6379/0' if Redis isn't in Docker
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -139,12 +145,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+# This is where Django's 'collectstatic' will place files.
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# This tells Django where to find your frontend's static files.
 STATICFILES_DIRS = [
-    # Correctly point to the 'frontend' directory for static assets
     os.path.join(BASE_DIR.parent, 'frontend'),
 ]
 
+# Use WhiteNoise storage for production (like v1)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
@@ -154,11 +162,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True # Good for initial setup
-# More specific setting to allow requests from local files
-# CORS_ALLOWED_ORIGINS = [
-#     "null",
-# ]
+CORS_ALLOW_ALL_ORIGINS = True # Keep this for simplicity, or restrict in production if needed
 
 
 # Django REST Framework configuration
@@ -170,10 +174,9 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [ # Add this section
         'django_filters.rest_framework.DjangoFilterBackend'
     ],
-        # --- NEW: Add pagination settings ---
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50 # You can adjust this number
 }
 
-# CSRF Trusted Origins for production
+# Use environment variable like in v1, ensure your production domain/IP is included
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1,https://dakhandvoter.akhandapps.com').split(',')

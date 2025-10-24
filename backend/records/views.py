@@ -8,8 +8,9 @@ from .text_parser import parse_voter_text_file, calculate_age
 from rest_framework.decorators import action
 from django.db.models import Case, When, Value, IntegerField
 from django.core.cache import cache
-from django.http import StreamingHttpResponse
+from django.http import StreamingHttpResponse, HttpResponse
 import json
+import csv
 
 from .models import Batch, Record, FamilyRelationship , CallHistory, Event
 from .serializers import (
@@ -172,20 +173,40 @@ class RelationshipStatsView(APIView):
 class AnalysisStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, format=None):
-        professions = Record.objects.filter(pesha__isnull=False).exclude(pesha__exact='').values('pesha').annotate(count=models.Count('pesha')).order_by('-count')
+        batch_id = request.query_params.get('batch_id')
+
+        queryset = Record.objects.all()
+        if batch_id:
+            queryset = queryset.filter(batch_id=batch_id)
+
+        professions = queryset.filter(pesha__isnull=False).exclude(pesha__exact='').values('pesha').annotate(count=models.Count('pesha')).order_by('-count')
         top_professions = list(professions[:10])
         other_count = sum(p['count'] for p in professions[10:])
         if other_count > 0:
             top_professions.append({'pesha': 'Others', 'count': other_count})
-        genders = Record.objects.filter(gender__isnull=False).exclude(gender__exact='').values('gender').annotate(count=models.Count('gender'))
-        age_groups = Record.objects.aggregate(
+            
+        genders = queryset.filter(gender__isnull=False).exclude(gender__exact='').values('gender').annotate(count=models.Count('gender'))
+        
+        age_groups = queryset.aggregate(
             group_18_25=models.Count(Case(When(age__range=(18, 25), then=Value(1)))),
             group_26_35=models.Count(Case(When(age__range=(26, 35), then=Value(1)))),
             group_36_45=models.Count(Case(When(age__range=(36, 45), then=Value(1)))),
             group_46_60=models.Count(Case(When(age__range=(46, 60), then=Value(1)))),
             group_60_plus=models.Count(Case(When(age__gt=60, then=Value(1)))),
         )
-        return Response({'professions': top_professions, 'genders': list(genders), 'age_groups': age_groups})
+
+        # Add batch distribution only when viewing all batches
+        batch_distribution = []
+        if not batch_id:
+            batch_stats = Record.objects.values('batch__name').annotate(record_count=models.Count('id')).order_by('-record_count')
+            batch_distribution = list(batch_stats)
+
+        return Response({
+            'professions': top_professions, 
+            'genders': list(genders), 
+            'age_groups': age_groups,
+            'batch_distribution': batch_distribution
+        })
 
 class RecalculateAgesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -229,151 +250,6 @@ class CallHistoryViewSet(viewsets.ModelViewSet):
             return CallHistory.objects.filter(record_id=record_id)
         return CallHistory.objects.none()
 
-class AllRecordsView(APIView):
-    """
-    Handles fetching of the entire dataset for "Import Mode" by streaming the response.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def stream_records_as_json(self):
-        # Using iterator with chunk_size is good for memory efficiency on the server.
-        queryset = Record.objects.select_related('batch').prefetch_related('events').all().order_by('id').iterator(chunk_size=2000)
-        yield '['
-        first = True
-        for record in queryset:
-            if not first:
-                yield ','
-            serializer = RecordSerializer(record)
-            yield json.dumps(serializer.data)
-            first = False
-        yield ']'
-
-    def get(self, request, format=None):
-        print("Streaming all records from DATABASE.")
-        response = StreamingHttpResponse(
-            self.stream_records_as_json(),
-            content_type="application/json"
-        )
-        return response
-
-# --- NEW: View to get all events for offline mode ---
-class AllEventsView(APIView):
-    """
-    Handles fetching of all events for "Import Mode".
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, format=None):
-        events = Event.objects.all().order_by('name')
-        serializer = EventSerializer(events, many=True)
-        return Response(serializer.data)
-
-# --- NEW: View to get all relationships for offline mode ---
-class AllFamilyRelationshipsView(APIView):
-    """
-    Handles fetching of all family relationships for "Import Mode".
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, format=None):
-        relationships = FamilyRelationship.objects.all()
-        # Use CreateFamilyRelationshipSerializer to get flat person/relative IDs
-        serializer = CreateFamilyRelationshipSerializer(relationships, many=True)
-        return Response(serializer.data)
-
-
-class SyncRecordsView(APIView):
-    """
-    Receives a batch of offline changes and applies them to the database.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    @transaction.atomic
-    def post(self, request, *args, **kwargs):
-        changes = request.data
-
-        # 1. Process updated records
-        updated_records_data = changes.get('updatedRecords', {})
-        records_to_update = []
-        if updated_records_data:
-            record_ids_to_update = [rid for rid in updated_records_data.keys() if not str(rid).startswith('new_')]
-            records_map = {str(r.id): r for r in Record.objects.filter(id__in=record_ids_to_update)}
-
-            update_fields = set()
-            for record_id, data in updated_records_data.items():
-                if record_id in records_map:
-                    record = records_map[record_id]
-                    for key, value in data.items():
-                        setattr(record, key, value)
-                        update_fields.add(key)
-                    records_to_update.append(record)
-
-            if records_to_update:
-                Record.objects.bulk_update(records_to_update, fields=list(update_fields))
-
-        # 2. Process new records and map temporary IDs to real IDs
-        new_records_data = changes.get('newRecords', [])
-        temp_id_map = {}
-        records_to_create = []
-        for new_record_data in new_records_data:
-            temp_id = new_record_data.pop('id')
-            record_instance = Record(**new_record_data)
-            records_to_create.append(record_instance)
-            temp_id_map[temp_id] = record_instance
-
-        if records_to_create:
-            created_records = Record.objects.bulk_create(records_to_create)
-            for i, record_instance in enumerate(records_to_create):
-                temp_id = next(key for key, val in temp_id_map.items() if val == record_instance)
-                temp_id_map[temp_id] = created_records[i].id
-
-        # 3. Process event assignments
-        event_assignments = changes.get('eventAssignments', {})
-        for record_id, event_ids in event_assignments.items():
-            real_record_id = temp_id_map.get(record_id, record_id)
-            if real_record_id and not isinstance(real_record_id, Record):
-                try:
-                    record = Record.objects.get(id=real_record_id)
-                    events = Event.objects.filter(id__in=event_ids)
-                    record.events.set(events)
-                except Record.DoesNotExist:
-                    print(f"Skipping event assignment for non-existent record ID: {real_record_id}")
-
-        # 4. Process new family relationships
-        new_family_rels = changes.get('newFamilyRls', [])
-        rels_to_create = []
-        for rel in new_family_rels:
-            person_id = temp_id_map.get(rel['person'], rel['person'])
-            relative_id = temp_id_map.get(rel['relative'], rel['relative'])
-            if person_id and relative_id:
-                 rels_to_create.append(
-                     FamilyRelationship(person_id=person_id, relative_id=relative_id, relationship_type=rel['relationship_type'])
-                 )
-        if rels_to_create:
-            FamilyRelationship.objects.bulk_create(rels_to_create, ignore_conflicts=True)
-
-        # 5. Process new call logs
-        new_call_logs = changes.get('newCallLogs', [])
-        logs_to_create = []
-        for log in new_call_logs:
-            record_id = temp_id_map.get(log['record'], log['record'])
-            if record_id:
-                logs_to_create.append(
-                    CallHistory(record_id=record_id, call_date=log['call_date'], summary=log['summary'])
-                )
-        if logs_to_create:
-            CallHistory.objects.bulk_create(logs_to_create)
-
-        # --- NEW: 6. Process deleted family relationships ---
-        deleted_rel_ids = changes.get('deletedFamilyRels', [])
-        if deleted_rel_ids:
-            # We only expect numeric IDs here, not temporary ones
-            valid_ids = [int(rid) for rid in deleted_rel_ids if str(rid).isnumeric()]
-            if valid_ids:
-                FamilyRelationship.objects.filter(id__in=valid_ids).delete()
-
-        return Response({"detail": "Sync successful"}, status=status.HTTP_200_OK)
-
 class DeleteAllDataView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -387,3 +263,51 @@ class DeleteAllDataView(APIView):
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- NEW VIEWS FOR DATA TABLES ---
+
+class RecordsByEventView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, event_id):
+        records = Record.objects.filter(events__id=event_id).select_related('batch').order_by('id')
+        
+        if request.query_params.get('format') == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="event_{event_id}_records.csv"'
+            
+            writer = csv.writer(response)
+            # Write headers
+            headers = [field.name for field in Record._meta.fields]
+            writer.writerow(headers)
+            
+            # Write data
+            for record in records:
+                writer.writerow([getattr(record, field) for field in headers])
+            return response
+
+        serializer = RecordSerializer(records, many=True)
+        return Response(serializer.data)
+
+class RecordsByBatchView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, batch_id):
+        records = Record.objects.filter(batch_id=batch_id).select_related('batch').order_by('id')
+
+        if request.query_params.get('format') == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="batch_{batch_id}_records.csv"'
+
+            writer = csv.writer(response)
+            # Write headers
+            headers = [field.name for field in Record._meta.fields]
+            writer.writerow(headers)
+
+            # Write data
+            for record in records:
+                writer.writerow([getattr(record, field) for field in headers])
+            return response
+
+        serializer = RecordSerializer(records, many=True)
+        return Response(serializer.data)
